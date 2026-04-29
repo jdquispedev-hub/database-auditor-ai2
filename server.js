@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const cors = require('cors');
 const OpenAI = require('openai');
 const xlsx = require('xlsx');
@@ -29,7 +30,7 @@ app.get('/jspdf.js', (req, res) => {
 // Configuración de Multer para subir archivos
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, 'uploads/');
+        cb(null, os.tmpdir);
     },
     filename: function (req, file, cb) {
         cb(null, Date.now() + '-' + file.originalname);
