@@ -27,7 +27,7 @@ app.get('/jspdf.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'node_modules/jspdf/dist/jspdf.umd.min.js'));
 });
 
-// Configuración de Multer para subir archivos
+// Configuración de Multer para subir archivos 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         cb(null, os.tmpdir);
