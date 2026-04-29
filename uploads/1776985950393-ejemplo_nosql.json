@@ -1,0 +1,33 @@
+{
+  "collections": [
+    {
+      "name": "users",
+      "fields": [
+        {"name": "_id", "type": "ObjectId", "primaryKey": true},
+        {"name": "username", "type": "string"},
+        {"name": "email", "type": "string"},
+        {"name": "profile", "type": "object", "description": "Embedded user profile info"},
+        {"name": "created_at", "type": "date"}
+      ]
+    },
+    {
+      "name": "posts",
+      "fields": [
+        {"name": "_id", "type": "ObjectId", "primaryKey": true},
+        {"name": "title", "type": "string"},
+        {"name": "content", "type": "string"},
+        {"name": "author_id", "type": "ObjectId"},
+        {"name": "tags", "type": "array"},
+        {"name": "comments", "type": "array", "description": "Array of comment subdocuments"}
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "from": "posts.author_id",
+      "to": "users._id",
+      "type": "reference",
+      "description": "One-to-Many reference from posts to users"
+    }
+  ]
+}
