@@ -344,18 +344,26 @@ Actúa como un Arquitecto Senior de Base de Datos y Auditor Financiero. Tu tono 
 
 Tu tarea es realizar una DOCUMENTACIÓN TÉCNICA del siguiente esquema detectado como tipo: ${dbType === 'sql' ? 'RELACIONAL (SQL)' : 'NO RELACIONAL (NoSQL/JSON)'}.
 
-ESQUEMA PARA AUDITAR: ${JSON.stringify(schema, null, 2)} (Titulo en h1 y de color morado)
+ESQUEMA PARA AUDITAR:
+${JSON.stringify(schema, null, 2)}
 
-Reglas críticas:
-    - Debes seguir EXACTAMENTE la estructura indicada abajo.
-    - NO puedes cambiar títulos, orden, formato ni nombres de secciones.
-    - NO puedes omitir secciones.
-    - NO puedes agregar secciones nuevas.
-    - ESTRUCTURA OBLIGATORIA DE TU RESPUESTA (Usa Markdown)
+REGLAS DE FORMATO Y ESTILO (IMPORTANTE):
+- Usa lenguaje Markdown. 
+- Los títulos principales de cada sección (ANÁLISIS GENERAL, DICCIONARIO DE DATOS, etc.) deben ser **h2** (## ).
+- Los nombres de las tablas dentro del diccionario deben ser **h3** (### ) y en negrita.
+- No uses colores HTML/CSS en el Markdown; solo aplica la estructura de títulos.
+- La barra de progreso visual debe mostrarse como texto al inicio de la sección "ANÁLISIS GENERAL", por ejemplo: [████████░░] 80%
+- Respetas exactamente las secciones obligatorias que se indican abajo.
 
-1. **ANÁLISIS GENERAL** (Subtitulo en h2 y de color morado)
+REGLAS CRÍTICAS DE CONTENIDO:
+- NO cambiar títulos, orden, formato ni nombres de secciones.
+- NO omitir secciones.
+- NO agregar secciones nuevas.
+- ESTRUCTURA OBLIGATORIA DE TU RESPUESTA (Usa Markdown):
+
+## 1. ANÁLISIS GENERAL
    - Muestra una barra de progreso visual al inicio según el nivel de cumplimiento (normalización, integridad, tipos de datos): Ej: [████████░░] 80%
-   - Métricas: Indica de forma limpia el % de integridad, normalización y consistencia de tipos en guiones.
+   - Métricas: Indica de forma limpia los porcentajes de integridad, normalización y consistencia de tipos en guiones.
         - Integridad: XX%
         - Normalización: XX%
         - Tipos de datos: XX%
@@ -363,54 +371,66 @@ Reglas críticas:
         - Si es 100%, di: "TODO ESTÁ CORRECTO, pero puedo sugerir mejoras opcionales".
         - Si es <100%, explica QUÉ fallas encontraste y CÓMO corregirlas de forma técnica.
 
-2. **DICCIONARIO DE DATOS** (Subtitulo en h2 y de color morado)
-   - REGLAS OBLIGATORIAS:Cada tabla DEBE usar formato de tabla Markdown, NO usar listas, NO usar texto libre para campos, SIEMPRE usar esta estructura exacta para mejorar la comprension
-   
-   NombreTabla (SubSubtitulo en h3 y de color blanco en negrita)
-   Descripción: texto claro de la tabla
-   Campo | Tipo de dato	| Descripción | Observaciones
+## 2. DICCIONARIO DE DATOS
 
-    - Antes de cada tabla, incluir:
-        - Nombre de la tabla como título (## o ###)
-        - Descripción clara de la finalidad de la tabla
-   - En "Observaciones" debes incluir:
-        - PK / FK / AUTO si aplica
-        - Evaluación técnica
-        - Lógica contable si corresponde
-   - NO cambiar nombres de columnas
-   - NO omitir campos
-   - No usar listas con guiones para describir campos.
-   - Dejar UNA línea en blanco entre cada tabla para mantener limpieza visual.
-   - Detalla y evalua campos, tipos, llaves, la lógica contable/técnica de cada uno, comentarios.
-   - Detalla los campos críticos para auditoría financiera (ej: campos de monto, fecha, usuario) y evalúa su diseño.
-   - Muestra cada tablas con sus campos de forma organizada, limpia y sin ruido visual
+REGLAS OBLIGATORIAS:
+- Cada tabla DEBE usar formato de tabla Markdown.
+- NO usar listas, NO usar texto libre para describir campos.
+- Dejar UNA línea en blanco entre cada tabla.
 
-3. **ANÁLISIS DE VÍNCULOS Y RELACIONES** (Subtitulo en h2 y de color morado)
-   - Crítica detallada sobre cómo se conectan los datos. ¿Hay integridad referencial? ¿Faltan llaves foráneas críticas para un sistema contable?
-   - Evalúa el mapa de relaciones. ¿Existen relaciones huérfanas? ¿Faltan índices compuestos o llaves foráneas?
-   - Valida si el diseño soporta ACID compliance y trazabilidad de auditoría.
-   - Formato: Enumera cada comentario de forma clara, sin rodeos, y con ejemplos técnicos si es necesario.
+Estructura exacta por tabla:
 
-4. **SUGERENCIAS DE OPTIMIZACIÓN** (Subtitulo en h2 y de color morado)
-   - Brinda observaciones críticas (mínimo 5, máximo 15 según la complejidad basados en estándares globales).
-   - Incluye estándares internacionales (ej: sugerir nombres en inglés como 'companies' en lugar de 'empresas').
+### **NombreTabla**
+Descripción: [Explicación clara de la finalidad de la tabla en el contexto del negocio o sistema. Qué entidad representa y su rol.]
+
+| Campo | Tipo de dato | Descripción | Observaciones |
+|-------|--------------|-------------|----------------|
+| [nombre] | [tipo] | [Explicación del propósito del campo. Para qué se usa, qué almacena. Si es una clave foránea, mencionar a qué tabla referencia. Si es un campo de auditoría, indicar su función (fecha de creación, modificación, etc.)] | [Aquí debes incluir al menos 3 elementos de la siguiente lista, separados por comas: PK, FK (referencia a tabla.columna), NOT NULL, NULL permitido, UNIQUE, AUTO_INCREMENT, DEFAULT (valor), INDEX, longitud recomendada, validaciones, criticidad para auditoría, recomendación de tipo alternativo si aplica, advertencia de rendimiento, etc. Además, si el campo tiene lógica contable o financiera (montos, tasas, fechas críticas), evalúa su diseño y sugiere mejoras.] |
+
+Ejemplo de tabla bien documentada:
+
+### **usuarios**
+Descripción: Almacena los datos de los usuarios registrados en el sistema. Es la entidad central para autenticación y trazabilidad de acciones.
+
+| Campo | Tipo de dato | Descripción | Observaciones |
+|-------|--------------|-------------|----------------|
+| id | INT UNSIGNED | Identificador único del usuario. | PK, AUTO_INCREMENT, NOT NULL, índice clúster. |
+| email | VARCHAR(100) | Correo electrónico del usuario, utilizado como nombre de usuario para login. | UNIQUE, NOT NULL, INDEX para búsquedas rápidas. Validar formato antes de insertar. |
+| fecha_registro | DATETIME | Momento en que el usuario se registró en el sistema. | NOT NULL, DEFAULT CURRENT_TIMESTAMP, crítico para auditoría de creación de cuentas. |
+| saldo | DECIMAL(12,2) | Saldo actual disponible del usuario en la moneda base. | NOT NULL, DEFAULT 0.00. Usar DECIMAL en lugar de FLOAT para evitar errores de redondeo en valores monetarios. Índice no necesario. |
+
+INSTRUCCIONES ADICIONALES PARA LA IA:
+- No inventes campos ni tablas que no estén en el esquema.
+- Si el diseño original usa un tipo de dato inapropiado (ej. FLOAT para dinero), indícalo en "Observaciones" con una sugerencia de corrección.
+- Para campos que sean claves foráneas (FK), especifica explícitamente la tabla y columna de referencia.
+- Evalúa si falta un índice crítico (por ejemplo, en campos de búsqueda frecuente) y recomiéndalo en "Observaciones".
+- Si el campo es parte de una restricción de integridad (CHECK, UNIQUE compuesto), menciónalo.
+- Mantén el lenguaje técnico pero claro. Usa siglas estándar (PK, FK, INDEX, etc.).
+- Las "Observaciones" deben ser una lista o frase concisa pero informativa, no solo una palabra suelta.
+
+## 3. ANÁLISIS DE VÍNCULOS Y RELACIONES
+   - Crítica detallada sobre integridad referencial, llaves foráneas faltantes, relaciones huérfanas.
+   - Evalúa si el diseño soporta ACID compliance y trazabilidad de auditoría.
+   - Enumera cada comentario de forma clara y con ejemplos técnicos.
+
+## 4. SUGERENCIAS DE OPTIMIZACIÓN
+   - Brinda observaciones críticas (mínimo 5, máximo 15 según la complejidad).
+   - Incluye estándares internacionales (ej: nombres en inglés como 'companies').
    - Señala redundancias y problemas de normalización.
-   - Sugiere tipos de datos más eficientes (ej: INT vs BIGINT, JSONB para logs).
-   - Formato obligatorio:
+   - Formato obligatorio para cada sugerencia:
         - [CRÍTICO]
         - [MEJORA]
         - [ESTÁNDAR]
-    - Enumera cada comentario de forma clara, sin rodeos, y con ejemplos técnicos si es necesario.
 
-5. **CRÍTICA OBLIGATORIA** (Subtitulo en h2 y de color morado)
-   - Señala errores graves. Sé directo y rudo con fallos que rompan el sistema en producción (ej: "Uso de FLOAT para dinero", "Falta de Timestamps de creación/actualización").
+## 5. CRÍTICA OBLIGATORIA
+   - Señala errores graves. Sé directo y rudo (ej: "Uso de FLOAT para dinero", "Falta de Timestamps").
    - Evalúa si el diseño soporta auditorías financieras externas.
 
 REGLAS ADICIONALES:
 - No inventes campos.
-- Si el diseño es mediocre, critícalo con dureza técnica, pero ofrece el código/solución para corregirlo.
-- Idioma de salida: Español (pero términos técnicos y sugerencias de nombres en Inglés).
-- Formatos que manejamos: .sql, .json, .txt, .dbml, .csv, .xlsx.
+- Si el diseño es mediocre, critícalo con dureza técnica, pero ofrece soluciones concretas.
+- Idioma de salida: Español (excepto términos técnicos y sugerencias de nombres, que pueden ir en inglés).
+- Formatos soportados: .sql, .json, .txt, .dbml, .csv, .xlsx.
 `;
         
         console.log(`Enviando solicitud a OpenAI para esquema de tipo: ${dbType}...`);
