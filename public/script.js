@@ -113,6 +113,12 @@ function setupEventListeners() {
     if (downloadAnomaliesPdfBtn) {
         downloadAnomaliesPdfBtn.addEventListener('click', downloadAnomaliesPdf);
     }
+
+    // Descargar Esquema Bruto
+    const downloadSchemaPdfBtnEl = document.getElementById('downloadSchemaPdfBtn');
+    if (downloadSchemaPdfBtnEl) {
+        downloadSchemaPdfBtnEl.addEventListener('click', downloadSchemaPdf);
+    }
     
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', switchTab);
@@ -241,7 +247,7 @@ function showLoading(show) {
     const spinner = analyzeBtn.querySelector('.loading-spinner');
     
     if (show) {
-        btnText.textContent = 'Interpretando tus datos... ya casi está listo.';
+        btnText.textContent = 'Analizando BD...Esto puede tardar unos segundos';
         spinner.style.display = 'inline-block';
         analyzeBtn.disabled = true;
     } else {
@@ -722,13 +728,42 @@ function downloadWord() {
     }
 
     const documentationHtml = marked.parse(getDocumentationCleanText());
+
     const html = `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <title>Documentación IA</title>
+<style>
+    body { font-family: Arial, sans-serif; padding: 32px; background: #ffffff; color: #1a1a1a; }
+    h1.doc-title { color: #5e6ad2; font-size: 1.6rem; margin-bottom: 4px; }
+    .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 28px; }
+    h1 { font-size: 1.4rem; color: #5e6ad2; margin: 24px 0 10px; border-bottom: 2px solid #e0e4ff; padding-bottom: 6px; }
+    h2 { font-size: 1.2rem; color: #5e6ad2; margin: 20px 0 8px; border-bottom: 1px solid #e0e4ff; padding-bottom: 4px; }
+    h3 { font-size: 1.05rem; color: #7c3aed; margin: 16px 0 6px; }
+    p { margin-bottom: 12px; color: #333; line-height: 1.7; }
+    ul, ol { padding-left: 24px; margin-bottom: 12px; }
+    li { margin-bottom: 5px; color: #333; }
+    strong { color: #1a1a1a; }
+    code { background: #f0f2f5; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.88rem; color: #7c3aed; }
+    pre { background: #f5f5ff; border: 1px solid #e0e4ff; border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+    blockquote { border-left: 4px solid #5e6ad2; padding: 8px 14px; background: #f5f5ff; margin-bottom: 12px; color: #555; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    thead tr { background: #f0f2f5; }
+    th { padding: 10px 12px; text-align: left; font-weight: 600; color: #333; border-bottom: 2px solid #ddd; }
+    td { padding: 10px 12px; border-bottom: 1px solid #e8e8e8; color: #444; }
+    hr { border: none; border-top: 1px solid #e0e4ff; margin: 20px 0; }
+    .audit-bar-wrapper { margin: 16px 0; }
+    .audit-bar-label { display: flex; justify-content: space-between; font-weight: 700; font-size: 0.9rem; margin-bottom: 6px; }
+    .audit-bar-bg { background: #e0e4ff; border-radius: 8px; height: 16px; overflow: hidden; }
+    .audit-bar-fill { background: linear-gradient(90deg, #5e6ad2, #9d4edd); height: 16px; border-radius: 8px; }
+</style>
 </head>
-<body>${documentationHtml}</body>
+<body>
+    <h1 class="doc-title">Documentación IA</h1>
+    <p class="subtitle">Generado automáticamente por DataScript AI</p>
+    ${documentationHtml}
+</body>
 </html>`;
 
     const blob = new Blob([html], { type: 'application/msword' });
@@ -781,31 +816,64 @@ function printDocumentation() {
         return;
     }
 
-    const documentationHtml = marked.parse(getDocumentationCleanText());
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
         showError('No se pudo abrir la ventana de impresión. Verifica tu navegador.');
         return;
     }
 
+    const documentationHtml = marked.parse(getDocumentationCleanText());
+
     printWindow.document.write(`<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Imprimir Documentación IA</title>
+<title>Documentación IA</title>
 <style>
-body { background: #0f111a; color: #f0f4ff; font-family: Arial, sans-serif; padding: 24px; }
-.markdown-body h1, .markdown-body h2, .markdown-body h3 { color: #9d4edd; }
-.markdown-body p, .markdown-body li, .markdown-body td { color: #e6ebff; }
-.markdown-body pre { background: #111429; color: #e0aaff; padding: 12px; border-radius: 8px; }
-.audit-bar-wrapper { margin: 20px 0; }
-.audit-bar-label { display: flex; justify-content: space-between; font-weight: 700; }
-.audit-bar-bg { background: #111429; border-radius: 8px; padding: 6px; }
-.audit-bar-fill { background: linear-gradient(90deg, #5e6ad2, #9d4edd); height: 16px; border-radius: 8px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; padding: 32px; background: #ffffff; color: #1a1a1a; }
+    h1.doc-title { color: #5e6ad2; font-size: 1.6rem; margin-bottom: 4px; }
+    .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 28px; }
+
+    /* Markdown general */
+    .markdown-body { line-height: 1.7; font-size: 0.95rem; color: #1a1a1a; }
+    .markdown-body h1 { font-size: 1.4rem; color: #5e6ad2; margin: 24px 0 10px; border-bottom: 2px solid #e0e4ff; padding-bottom: 6px; }
+    .markdown-body h2 { font-size: 1.2rem; color: #5e6ad2; margin: 20px 0 8px; border-bottom: 1px solid #e0e4ff; padding-bottom: 4px; }
+    .markdown-body h3 { font-size: 1.05rem; color: #7c3aed; margin: 16px 0 6px; }
+    .markdown-body p { margin-bottom: 12px; color: #333; }
+    .markdown-body ul, .markdown-body ol { padding-left: 24px; margin-bottom: 12px; }
+    .markdown-body li { margin-bottom: 5px; color: #333; }
+    .markdown-body strong { color: #1a1a1a; font-weight: 700; }
+    .markdown-body em { color: #555; }
+    .markdown-body code { background: #f0f2f5; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.88rem; color: #7c3aed; }
+    .markdown-body pre { background: #f5f5ff; border: 1px solid #e0e4ff; border-radius: 8px; padding: 14px; margin-bottom: 14px; overflow-x: auto; }
+    .markdown-body pre code { background: none; padding: 0; color: #333; }
+    .markdown-body blockquote { border-left: 4px solid #5e6ad2; padding: 8px 14px; background: #f5f5ff; border-radius: 0 8px 8px 0; margin-bottom: 12px; color: #555; }
+    .markdown-body table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    .markdown-body thead tr { background: #f0f2f5; }
+    .markdown-body th { padding: 10px 12px; text-align: left; font-weight: 600; color: #333; border-bottom: 2px solid #ddd; font-size: 0.88rem; }
+    .markdown-body td { padding: 10px 12px; border-bottom: 1px solid #e8e8e8; color: #444; font-size: 0.88rem; }
+    .markdown-body hr { border: none; border-top: 1px solid #e0e4ff; margin: 20px 0; }
+
+    /* Barra de auditoría */
+    .audit-bar-wrapper { margin: 16px 0; }
+    .audit-bar-label { display: flex; justify-content: space-between; font-weight: 700; font-size: 0.9rem; margin-bottom: 6px; color: #333; }
+    .audit-bar-bg { background: #e0e4ff; border-radius: 8px; height: 16px; overflow: hidden; }
+    .audit-bar-fill { background: linear-gradient(90deg, #5e6ad2, #9d4edd); height: 16px; border-radius: 8px; }
+
+    @media print { body { padding: 16px; } }
 </style>
 </head>
 <body>
-<div class="markdown-body">${documentationHtml}</div>
+    <h1 class="doc-title">Documentación IA</h1>
+    <p class="subtitle">Generado automáticamente por DataScript AI</p>
+    <div class="markdown-body">${documentationHtml}</div>
+<script>
+    // Animar barras de auditoría
+    document.querySelectorAll('.audit-bar-fill[data-width]').forEach(el => {
+        el.style.width = el.getAttribute('data-width') + '%';
+    });
+</script>
 </body>
 </html>`);
     printWindow.document.close();
@@ -1034,40 +1102,175 @@ function downloadSchemaWord() {
     URL.revokeObjectURL(url);
 }
 
-function downloadSchemaPdf() {
-    const schemaText = getSchemaText();
-    if (!schemaText) {
+async function downloadSchemaPdf() {
+    if (!currentResults || !currentResults.schema) {
         showError('No hay esquema disponible para descargar.');
         return;
     }
 
-    let jsPDF;
-    if (window.jsPDF) {
-        jsPDF = window.jsPDF;
-    } else if (window.jspdf && window.jspdf.jsPDF) {
-        jsPDF = window.jspdf.jsPDF;
-    } else {
-        showError('La librería PDF no está disponible.');
-        return;
-    }
+    const originalBtn = document.getElementById('downloadSchemaPdfBtn');
+    const originalContent = originalBtn.innerHTML;
+    originalBtn.disabled = true;
+    originalBtn.innerHTML = 'Generando PDF...';
 
     try {
-        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-        const margin = 15;
-        const pageWidth = doc.internal.pageSize.getWidth() - margin * 2;
-        const textLines = doc.splitTextToSize(schemaText, pageWidth);
-        doc.setFontSize(10);
-        doc.text(textLines, margin, 20);
-        doc.save(`esquema_bruto_${Date.now()}.pdf`);
+        const schema = currentResults.schema;
+        const tables = schema.tables || [];
+        const totalColumns = tables.reduce((t, table) => t + table.columns.length, 0);
+        const totalRelations = schema.relations ? schema.relations.length : 0;
+
+        // Construir HTML visual igual al de anomalías
+        let tablesHtml = '';
+        tables.forEach(table => {
+            const hasPK = table.columns.some(c => c.primaryKey);
+            const rowsHtml = table.columns.map(col => {
+                const badges = [];
+                if (col.primaryKey) badges.push('<span style="background:#5e6ad2;color:white;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:bold;">PK</span>');
+                if (col.autoIncrement) badges.push('<span style="background:#9d4edd;color:white;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:bold;">AUTO</span>');
+                if (!col.nullable) badges.push('<span style="background:#ff9800;color:white;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:bold;">NOT NULL</span>');
+                return `
+                    <tr>
+                        <td style="padding:10px 12px;border-bottom:1px solid #e0e0e0;color:#333;">${col.name}</td>
+                        <td style="padding:10px 12px;border-bottom:1px solid #e0e0e0;color:#555;font-family:monospace;">${col.type}</td>
+                        <td style="padding:10px 12px;border-bottom:1px solid #e0e0e0;">${badges.join(' ')}</td>
+                    </tr>`;
+            }).join('');
+
+            tablesHtml += `
+                <div style="background:#f9f9ff;border-radius:16px;padding:20px;margin-bottom:20px;
+                            border-left:6px solid #5e6ad2;border-top:1px solid #eee;
+                            border-right:1px solid #eee;border-bottom:1px solid #eee;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                        <h3 style="margin:0;color:#1a1a1a;font-size:1.1rem;">&#128203; ${table.name}</h3>
+                        <span style="background:${hasPK ? '#5e6ad2' : '#ff5252'};color:white;padding:4px 12px;
+                                     border-radius:20px;font-size:0.8rem;font-weight:bold;">
+                            ${table.columns.length} columna(s)
+                        </span>
+                    </div>
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead>
+                            <tr>
+                                <th style="padding:10px 12px;background:#f0f2f5;text-align:left;color:#333;font-weight:600;border-bottom:2px solid #ddd;">Columna</th>
+                                <th style="padding:10px 12px;background:#f0f2f5;text-align:left;color:#333;font-weight:600;border-bottom:2px solid #ddd;">Tipo</th>
+                                <th style="padding:10px 12px;background:#f0f2f5;text-align:left;color:#333;font-weight:600;border-bottom:2px solid #ddd;">Atributos</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHtml}</tbody>
+                    </table>
+                </div>`;
+        });
+
+        // Relaciones
+        let relationsHtml = '';
+        if (schema.relations && schema.relations.length > 0) {
+            const relRows = schema.relations.map(rel => `
+                <tr>
+                    <td style="padding:10px 12px;border-bottom:1px solid #e0e0e0;color:#333;">${rel.from}</td>
+                    <td style="padding:10px 12px;border-bottom:1px solid #e0e0e0;color:#555;">&#8594;</td>
+                    <td style="padding:10px 12px;border-bottom:1px solid #e0e0e0;color:#333;">${rel.to}</td>
+                </tr>`).join('');
+
+            relationsHtml = `
+                <div style="background:#f9f9ff;border-radius:16px;padding:20px;margin-bottom:20px;
+                            border-left:6px solid #9d4edd;border-top:1px solid #eee;
+                            border-right:1px solid #eee;border-bottom:1px solid #eee;">
+                    <h3 style="margin:0 0 14px 0;color:#1a1a1a;font-size:1.1rem;">&#128279; Relaciones inferidas</h3>
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead>
+                            <tr>
+                                <th style="padding:10px 12px;background:#f0f2f5;text-align:left;color:#333;font-weight:600;border-bottom:2px solid #ddd;">Desde</th>
+                                <th style="padding:10px 12px;background:#f0f2f5;text-align:left;color:#333;font-weight:600;border-bottom:2px solid #ddd;"></th>
+                                <th style="padding:10px 12px;background:#f0f2f5;text-align:left;color:#333;font-weight:600;border-bottom:2px solid #ddd;">Hacia</th>
+                            </tr>
+                        </thead>
+                        <tbody>${relRows}</tbody>
+                    </table>
+                </div>`;
+        }
+
+        const fullHtml = `
+            <div style="font-family:Arial,sans-serif;padding:40px;background:#ffffff;color:#000;width:800px;">
+                <h1 style="color:#5e6ad2;margin-bottom:6px;font-size:1.6rem;">Esquema de Base de Datos</h1>
+                <p style="color:#888;margin-bottom:24px;font-size:0.9rem;">Generado automáticamente</p>
+
+                <div style="display:flex;gap:20px;margin-bottom:28px;">
+                    <div style="background:#f0f4ff;padding:16px;border-radius:12px;text-align:center;flex:1;border:1px solid #d0d7ff;">
+                        <div style="font-size:0.85rem;color:#555;margin-bottom:6px;">Tablas encontradas</div>
+                        <div style="font-size:2rem;font-weight:700;color:#5e6ad2;">${tables.length}</div>
+                    </div>
+                    <div style="background:#f0f4ff;padding:16px;border-radius:12px;text-align:center;flex:1;border:1px solid #d0d7ff;">
+                        <div style="font-size:0.85rem;color:#555;margin-bottom:6px;">Relaciones inferidas</div>
+                        <div style="font-size:2rem;font-weight:700;color:#5e6ad2;">${totalRelations}</div>
+                    </div>
+                    <div style="background:#f0f4ff;padding:16px;border-radius:12px;text-align:center;flex:1;border:1px solid #d0d7ff;">
+                        <div style="font-size:0.85rem;color:#555;margin-bottom:6px;">Columnas totales</div>
+                        <div style="font-size:2rem;font-weight:700;color:#5e6ad2;">${totalColumns}</div>
+                    </div>
+                </div>
+
+                ${tablesHtml}
+                ${relationsHtml}
+            </div>`;
+
+        // Montar en DOM oculto
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'fixed';
+        wrapper.style.left = '-9999px';
+        wrapper.style.top = '0';
+        wrapper.style.zIndex = '-1';
+        wrapper.innerHTML = fullHtml;
+        document.body.appendChild(wrapper);
+
+        const canvas = await html2canvas(wrapper.firstElementChild, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff'
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+
+        let jsPDF;
+        if (window.jsPDF) {
+            jsPDF = window.jsPDF;
+        } else if (window.jspdf && window.jspdf.jsPDF) {
+            jsPDF = window.jspdf.jsPDF;
+        } else {
+            throw new Error('La librería jsPDF no está cargada correctamente.');
+        }
+
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgWidth = 190;
+        const pageHeight = 287;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        let heightLeft = imgHeight;
+        let position = 10;
+
+        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+        heightLeft -= (pageHeight - 10);
+
+        while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+        }
+
+        pdf.save(`esquema_bruto_${Date.now()}.pdf`);
+        document.body.removeChild(wrapper);
+
     } catch (error) {
         console.error('Error generando PDF del esquema:', error);
-        showError('Error al generar el PDF del esquema.');
+        showError('Error al generar el PDF del esquema: ' + error.message);
+    } finally {
+        originalBtn.disabled = false;
+        originalBtn.innerHTML = originalContent;
     }
 }
 
 function printSchema() {
-    const schemaText = getSchemaText();
-    if (!schemaText) {
+    if (!currentResults || !currentResults.schema) {
         showError('No hay esquema disponible para imprimir.');
         return;
     }
@@ -1078,18 +1281,143 @@ function printSchema() {
         return;
     }
 
+    const schema = currentResults.schema;
+    const tables = schema.tables || [];
+    const totalColumns = tables.reduce((t, table) => t + table.columns.length, 0);
+    const totalRelations = schema.relations ? schema.relations.length : 0;
+
+    // Construir tarjetas de tablas
+    let tablesHtml = '';
+    tables.forEach(table => {
+        const hasPK = table.columns.some(c => c.primaryKey);
+        const rowsHtml = table.columns.map(col => {
+            const badges = [];
+            if (col.primaryKey) badges.push('<span class="badge badge-pk">PK</span>');
+            if (col.autoIncrement) badges.push('<span class="badge badge-auto">AUTO</span>');
+            if (!col.nullable) badges.push('<span class="badge badge-nn">NOT NULL</span>');
+            return `
+                <tr>
+                    <td>${col.name}</td>
+                    <td class="mono">${col.type}</td>
+                    <td>${badges.join(' ')}</td>
+                </tr>`;
+        }).join('');
+
+        tablesHtml += `
+            <div class="card card-blue">
+                <div class="card-header">
+                    <h3>&#128203; ${table.name}</h3>
+                    <span class="badge ${hasPK ? 'badge-pk' : 'badge-issue'}">
+                        ${table.columns.length} columna(s)
+                    </span>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Columna</th>
+                            <th>Tipo</th>
+                            <th>Atributos</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+            </div>`;
+    });
+
+    // Construir sección de relaciones
+    let relationsHtml = '';
+    if (schema.relations && schema.relations.length > 0) {
+        const relRows = schema.relations.map(rel => `
+            <tr>
+                <td>${rel.from}</td>
+                <td style="text-align:center;">&#8594;</td>
+                <td>${rel.to}</td>
+            </tr>`).join('');
+
+        relationsHtml = `
+            <div class="card card-purple">
+                <div class="card-header">
+                    <h3>&#128279; Relaciones inferidas</h3>
+                    <span class="badge badge-auto">${totalRelations} relación(es)</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>Desde</th><th></th><th>Hacia</th></tr>
+                    </thead>
+                    <tbody>${relRows}</tbody>
+                </table>
+            </div>`;
+    }
+
     printWindow.document.write(`<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <title>Imprimir Esquema Bruto</title>
 <style>
-body { font-family: monospace; padding: 20px; background: white; color: black; }
-pre { white-space: pre-wrap; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; padding: 32px; background: #ffffff; color: #1a1a1a; }
+    h1 { color: #5e6ad2; font-size: 1.6rem; margin-bottom: 4px; }
+    .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 24px; }
+
+    .stats { display: flex; gap: 16px; margin-bottom: 28px; }
+    .stat-card { background: #f0f4ff; border: 1px solid #d0d7ff; border-radius: 12px;
+                 padding: 16px; flex: 1; text-align: center; }
+    .stat-card .label { font-size: 0.82rem; color: #555; margin-bottom: 6px; }
+    .stat-card .value { font-size: 2rem; font-weight: 700; color: #5e6ad2; }
+
+    .card { border-radius: 14px; padding: 20px; margin-bottom: 20px;
+            border-top: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee; }
+    .card-blue  { border-left: 6px solid #5e6ad2; background: #f9f9ff; }
+    .card-purple { border-left: 6px solid #9d4edd; background: #fdf6ff; }
+
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .card-header h3 { font-size: 1.05rem; color: #1a1a1a; }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: #f0f2f5; }
+    th { padding: 10px 12px; text-align: left; font-weight: 600; color: #333;
+         border-bottom: 2px solid #ddd; font-size: 0.88rem; }
+    td { padding: 10px 12px; border-bottom: 1px solid #e8e8e8; color: #444; font-size: 0.88rem; }
+    .mono { font-family: monospace; color: #555; }
+
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 10px;
+             font-size: 0.75rem; font-weight: bold; color: white; margin-right: 4px; }
+    .badge-pk   { background: #5e6ad2; }
+    .badge-auto { background: #9d4edd; }
+    .badge-nn   { background: #ff9800; }
+    .badge-issue { background: #ff5252; }
+
+    @media print {
+        body { padding: 16px; }
+        .card { page-break-inside: avoid; }
+    }
 </style>
 </head>
-<body><pre>${schemaText}</pre></body>
+<body>
+    <h1>Esquema de Base de Datos</h1>
+    <p class="subtitle">Generado automáticamente</p>
+
+    <div class="stats">
+        <div class="stat-card">
+            <div class="label">Tablas encontradas</div>
+            <div class="value">${tables.length}</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Relaciones inferidas</div>
+            <div class="value">${totalRelations}</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Columnas totales</div>
+            <div class="value">${totalColumns}</div>
+        </div>
+    </div>
+
+    ${tablesHtml}
+    ${relationsHtml}
+</body>
 </html>`);
+
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();
@@ -1097,8 +1425,7 @@ pre { white-space: pre-wrap; }
 
 
 function printAnomalies() {
-    const anomaliesContainer = document.getElementById('anomaliesContainer');
-    if (!anomaliesContainer || !anomaliesContainer.innerHTML.trim()) {
+    if (!currentResults || !currentResults.schema) {
         showError('No hay anomalías para imprimir.');
         return;
     }
@@ -1109,36 +1436,102 @@ function printAnomalies() {
         return;
     }
 
-    const content = anomaliesContainer.cloneNode(true);
-    // Asegurar que los estilos se mantengan
-    const styles = document.querySelector('style').innerHTML;
+    const anomalies = analyzeAnomalies(currentResults.schema);
+    const totalTables = currentResults.schema.tables.length;
+    let anomalyTypesWithIssues = 0;
+    let totalIncidencias = 0;
+    for (const key in anomalies) {
+        if (anomalies[key].length > 0) { anomalyTypesWithIssues++; totalIncidencias += anomalies[key].length; }
+    }
+
+    const anomalyDefinitions = [
+        { key: 'singleColumnTables', title: 'Tablas con una sola columna', description: 'Una tabla con una única columna suele indicar un diseño pobre o una entidad mal modelada. Normalizar o fusionar con otra tabla podría ser necesario.' },
+        { key: 'sequentialColumnNames', title: 'Columnas con nombres secuenciales', description: 'Nombres como col1, col2, campo3 sugieren desnormalización (atributos repetidos horizontalmente). Se recomienda migrar a una estructura vertical (una fila por valor).' },
+        { key: 'implicitForeignKeys', title: 'Posibles claves foráneas implícitas', description: 'Columnas terminadas en "_id" que podrían referenciar otra tabla, pero sin restricción formal de integridad referencial. Considere agregar FOREIGN KEY o documentar la relación.' },
+        { key: 'floatColumns', title: 'Uso de FLOAT o DOUBLE', description: 'Los tipos flotantes pueden causar errores de redondeo en valores monetarios o críticos. Emplee DECIMAL/NUMERIC en su lugar.' },
+        { key: 'tablesWithoutPK', title: 'Tablas sin clave primaria', description: 'La ausencia de una clave primaria impide la identificación única de filas y afecta la integridad referencial.' },
+        { key: 'longVarcharColumns', title: 'Columnas VARCHAR excesivamente largas', description: 'VARCHAR con longitud > 255 puede degradar el rendimiento. Evalúe si realmente se necesita tanta capacidad.' }
+    ];
+
+    let cardsHtml = '';
+    const hasAny = anomalyDefinitions.some(def => anomalies[def.key] && anomalies[def.key].length > 0);
+
+    if (hasAny) {
+        for (const def of anomalyDefinitions) {
+            const items = anomalies[def.key];
+            if (!items || items.length === 0) continue;
+            let rows = '';
+            for (const item of items) {
+                let detalle = '';
+                if (def.key === 'singleColumnTables') detalle = 'La tabla tiene exactamente 1 columna.';
+                else if (def.key === 'tablesWithoutPK') detalle = 'No se definió ninguna clave primaria.';
+                else detalle = 'Columnas' + (def.key === 'sequentialColumnNames' ? ' con nombres secuenciales: ' : ': ') + item.columns;
+                rows += `<tr><td>${item.table}</td><td>${detalle}</td></tr>`;
+            }
+            cardsHtml += `
+                <div class="card card-red">
+                    <div class="card-header">
+                        <h3>${def.title}</h3>
+                        <span class="badge badge-issue">${items.length} incidencia(s)</span>
+                    </div>
+                    <p class="description">${def.description}</p>
+                    <table>
+                        <thead><tr><th>Tabla</th><th>Detalle</th></tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>`;
+        }
+    } else {
+        cardsHtml = `
+            <div class="card card-green">
+                <div class="card-header">
+                    <h3>Sin anomalías detectadas</h3>
+                    <span class="badge badge-clean">OK</span>
+                </div>
+                <p class="clean-msg">El esquema analizado no presenta ninguna de las anomalías revisadas.</p>
+            </div>`;
+    }
+
     printWindow.document.write(`<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <title>Reporte de Anomalías</title>
 <style>
-    body { background: #0f111a; color: #f0f4ff; font-family: 'Outfit', sans-serif; padding: 20px; }
-    .anomalies-summary { background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; margin-bottom: 20px; }
-    .summary-stats { display: flex; gap: 20px; }
-    .summary-stat { display: flex; flex-direction: column; }
-    .stat-label { font-size: 0.8rem; color: #9ba1b6; }
-    .stat-value { font-size: 1.8rem; font-weight: 700; }
-    .warning { color: #ffaa44; }
-    .success { color: #4caf50; }
-    .anomaly-card { background: rgba(0,0,0,0.3); border-radius: 16px; padding: 16px; margin-bottom: 16px; border-left: 4px solid #ff5252; }
-    .anomaly-card.clean { border-left-color: #4caf50; }
-    .anomaly-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .badge-issue { background: #ff5252; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; }
-    .badge-clean { background: #4caf50; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; }
-    .anomaly-issues { margin: 0; padding-left: 20px; }
-    .anomaly-issues li { margin-bottom: 8px; }
-    .clean-message { color: #a5d6a7; margin: 0; }
-    ${styles}
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; padding: 32px; background: #ffffff; color: #1a1a1a; }
+    h1 { color: #e53935; font-size: 1.6rem; margin-bottom: 4px; }
+    .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 24px; }
+    .stats { display: flex; gap: 16px; margin-bottom: 28px; }
+    .stat-card { background: #fff5f5; border: 1px solid #ffcdd2; border-radius: 12px; padding: 16px; flex: 1; text-align: center; }
+    .stat-card .label { font-size: 0.82rem; color: #555; margin-bottom: 6px; }
+    .stat-card .value { font-size: 2rem; font-weight: 700; color: #e53935; }
+    .card { border-radius: 14px; padding: 20px; margin-bottom: 20px; border-top: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee; }
+    .card-red   { border-left: 6px solid #ff5252; background: #fff9f9; }
+    .card-green { border-left: 6px solid #4caf50; background: #f9fff9; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .card-header h3 { font-size: 1.05rem; color: #1a1a1a; }
+    .description { font-size: 0.9rem; color: #555; margin-bottom: 14px; line-height: 1.5; }
+    .clean-msg { font-size: 0.95rem; color: #2e7d32; }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: #f0f2f5; }
+    th { padding: 10px 12px; text-align: left; font-weight: 600; color: #333; border-bottom: 2px solid #ddd; font-size: 0.88rem; }
+    td { padding: 10px 12px; border-bottom: 1px solid #e8e8e8; color: #444; font-size: 0.88rem; }
+    .badge { display: inline-block; padding: 3px 11px; border-radius: 20px; font-size: 0.78rem; font-weight: bold; color: white; }
+    .badge-issue { background: #ff5252; }
+    .badge-clean { background: #4caf50; }
+    @media print { body { padding: 16px; } .card { page-break-inside: avoid; } }
 </style>
 </head>
 <body>
-    ${content.outerHTML}
+    <h1>Reporte de Anomalías</h1>
+    <p class="subtitle">Generado automáticamente</p>
+    <div class="stats">
+        <div class="stat-card"><div class="label">Tablas analizadas</div><div class="value">${totalTables}</div></div>
+        <div class="stat-card"><div class="label">Tipos de anomalía</div><div class="value">${anomalyTypesWithIssues}</div></div>
+        <div class="stat-card"><div class="label">Incidencias totales</div><div class="value">${totalIncidencias}</div></div>
+    </div>
+    ${cardsHtml}
 </body>
 </html>`);
     printWindow.document.close();
@@ -1147,6 +1540,141 @@ function printAnomalies() {
 }
 
 async function downloadAnomaliesPdf() {
+    if (!currentResults || !currentResults.schema) {
+        showError('No hay contenido de anomalías para exportar a PDF.');
+        return;
+    }
+
+    const originalBtn = document.getElementById('downloadAnomaliesPdfBtn');
+    const originalContent = originalBtn.innerHTML;
+    originalBtn.disabled = true;
+    originalBtn.innerHTML = 'Generando PDF...';
+
+    try {
+        const anomalies = analyzeAnomalies(currentResults.schema);
+        const totalTables = currentResults.schema.tables.length;
+        let anomalyTypesWithIssues = 0, totalIncidencias = 0;
+        for (const key in anomalies) {
+            if (anomalies[key].length > 0) { anomalyTypesWithIssues++; totalIncidencias += anomalies[key].length; }
+        }
+
+        const anomalyDefinitions = [
+            { key: 'singleColumnTables', title: 'Tablas con una sola columna', description: 'Una tabla con una única columna suele indicar un diseño pobre o una entidad mal modelada.' },
+            { key: 'sequentialColumnNames', title: 'Columnas con nombres secuenciales', description: 'Nombres como col1, col2, campo3 sugieren desnormalización. Se recomienda migrar a una estructura vertical.' },
+            { key: 'implicitForeignKeys', title: 'Posibles claves foráneas implícitas', description: 'Columnas terminadas en "_id" sin restricción formal de integridad referencial.' },
+            { key: 'floatColumns', title: 'Uso de FLOAT o DOUBLE', description: 'Los tipos flotantes pueden causar errores de redondeo. Emplee DECIMAL/NUMERIC en su lugar.' },
+            { key: 'tablesWithoutPK', title: 'Tablas sin clave primaria', description: 'La ausencia de clave primaria impide la identificación única de filas.' },
+            { key: 'longVarcharColumns', title: 'Columnas VARCHAR excesivamente largas', description: 'VARCHAR con longitud > 255 puede degradar el rendimiento.' }
+        ];
+
+        let cardsHtml = '';
+        const hasAny = anomalyDefinitions.some(def => anomalies[def.key] && anomalies[def.key].length > 0);
+
+        if (hasAny) {
+            for (const def of anomalyDefinitions) {
+                const items = anomalies[def.key];
+                if (!items || items.length === 0) continue;
+                let rows = '';
+                for (const item of items) {
+                    let detalle = '';
+                    if (def.key === 'singleColumnTables') detalle = 'La tabla tiene exactamente 1 columna.';
+                    else if (def.key === 'tablesWithoutPK') detalle = 'No se definió ninguna clave primaria.';
+                    else detalle = 'Columnas' + (def.key === 'sequentialColumnNames' ? ' con nombres secuenciales: ' : ': ') + item.columns;
+                    rows += `<tr><td style="padding:10px 12px;border-bottom:1px solid #e0e0e0;color:#333;">${item.table}</td><td style="padding:10px 12px;border-bottom:1px solid #e0e0e0;color:#555;">${detalle}</td></tr>`;
+                }
+                cardsHtml += `
+                    <div style="background:#fff9f9;border-radius:16px;padding:20px;margin-bottom:20px;
+                                border-left:6px solid #ff5252;border-top:1px solid #eee;
+                                border-right:1px solid #eee;border-bottom:1px solid #eee;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                            <h3 style="margin:0;color:#1a1a1a;font-size:1.05rem;">${def.title}</h3>
+                            <span style="background:#ff5252;color:white;padding:3px 11px;border-radius:20px;font-size:0.78rem;font-weight:bold;">${items.length} incidencia(s)</span>
+                        </div>
+                        <p style="font-size:0.9rem;color:#555;margin-bottom:14px;line-height:1.5;">${def.description}</p>
+                        <table style="width:100%;border-collapse:collapse;">
+                            <thead><tr>
+                                <th style="padding:10px 12px;background:#f0f2f5;text-align:left;color:#333;font-weight:600;border-bottom:2px solid #ddd;">Tabla</th>
+                                <th style="padding:10px 12px;background:#f0f2f5;text-align:left;color:#333;font-weight:600;border-bottom:2px solid #ddd;">Detalle</th>
+                            </tr></thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>`;
+            }
+        } else {
+            cardsHtml = `
+                <div style="background:#f9fff9;border-radius:16px;padding:20px;margin-bottom:20px;
+                            border-left:6px solid #4caf50;border-top:1px solid #eee;
+                            border-right:1px solid #eee;border-bottom:1px solid #eee;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                        <h3 style="margin:0;color:#1a1a1a;">Sin anomalías detectadas</h3>
+                        <span style="background:#4caf50;color:white;padding:3px 11px;border-radius:20px;font-size:0.78rem;font-weight:bold;">OK</span>
+                    </div>
+                    <p style="color:#2e7d32;">El esquema analizado no presenta ninguna de las anomalías revisadas.</p>
+                </div>`;
+        }
+
+        const fullHtml = `
+            <div style="font-family:Arial,sans-serif;padding:40px;background:#ffffff;color:#000;width:800px;">
+                <h1 style="color:#e53935;margin-bottom:6px;font-size:1.6rem;">Reporte de Anomalías</h1>
+                <p style="color:#888;margin-bottom:24px;font-size:0.9rem;">Generado automáticamente</p>
+                <div style="display:flex;gap:20px;margin-bottom:28px;">
+                    <div style="background:#fff5f5;padding:16px;border-radius:12px;text-align:center;flex:1;border:1px solid #ffcdd2;">
+                        <div style="font-size:0.85rem;color:#555;margin-bottom:6px;">Tablas analizadas</div>
+                        <div style="font-size:2rem;font-weight:700;color:#e53935;">${totalTables}</div>
+                    </div>
+                    <div style="background:#fff5f5;padding:16px;border-radius:12px;text-align:center;flex:1;border:1px solid #ffcdd2;">
+                        <div style="font-size:0.85rem;color:#555;margin-bottom:6px;">Tipos de anomalía</div>
+                        <div style="font-size:2rem;font-weight:700;color:#e53935;">${anomalyTypesWithIssues}</div>
+                    </div>
+                    <div style="background:#fff5f5;padding:16px;border-radius:12px;text-align:center;flex:1;border:1px solid #ffcdd2;">
+                        <div style="font-size:0.85rem;color:#555;margin-bottom:6px;">Incidencias totales</div>
+                        <div style="font-size:2rem;font-weight:700;color:#e53935;">${totalIncidencias}</div>
+                    </div>
+                </div>
+                ${cardsHtml}
+            </div>`;
+
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;';
+        wrapper.innerHTML = fullHtml;
+        document.body.appendChild(wrapper);
+
+        const canvas = await html2canvas(wrapper.firstElementChild, {
+            scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff'
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        let jsPDF = window.jsPDF || (window.jspdf && window.jspdf.jsPDF);
+        if (!jsPDF) throw new Error('La librería jsPDF no está cargada.');
+
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgWidth = 190, pageHeight = 287;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight, position = 10;
+
+        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+        heightLeft -= (pageHeight - 10);
+        while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+        }
+
+        pdf.save(`reporte_anomalias_${Date.now()}.pdf`);
+        document.body.removeChild(wrapper);
+
+    } catch (error) {
+        console.error('Error generando PDF de anomalías:', error);
+        showError('Error al generar el PDF: ' + error.message);
+    } finally {
+        originalBtn.disabled = false;
+        originalBtn.innerHTML = originalContent;
+    }
+}
+
+
+async function downloadSchemaPdfBtn() {
     const anomaliesContainer = document.getElementById('anomaliesContainer');
     if (!anomaliesContainer || !anomaliesContainer.innerHTML.trim()) {
         showError('No hay contenido de anomalías para exportar a PDF.');
@@ -1154,7 +1682,7 @@ async function downloadAnomaliesPdf() {
     }
 
     // Mostrar un indicador de carga si fuera necesario
-    const originalBtn = document.getElementById('downloadAnomaliesPdfBtn');
+    const originalBtn = document.getElementById('downloadSchemaPdfBtn');
     const originalContent = originalBtn.innerHTML;
     originalBtn.disabled = true;
     originalBtn.innerHTML = 'Generando PDF...';
