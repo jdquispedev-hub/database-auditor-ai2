@@ -101,6 +101,18 @@ function setupEventListeners() {
     if (printSchemaBtn) {
         printSchemaBtn.addEventListener('click', printSchema);
     }
+
+    // Anomalias
+    const printAnomaliesBtn = document.getElementById('printAnomaliesBtn');
+    if (printAnomaliesBtn) {
+        printAnomaliesBtn.addEventListener('click', printAnomalies);
+    }
+
+    // Descargar Anomalías ---------------------------------------------------------------------------------------------------
+    const downloadAnomaliesPdfBtn = document.getElementById('downloadAnomaliesPdfBtn');
+    if (downloadAnomaliesPdfBtn) {
+        downloadAnomaliesPdfBtn.addEventListener('click', downloadAnomaliesPdf);
+    }
     
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', switchTab);
@@ -244,6 +256,7 @@ function displayResults(results) {
     displaySchema(results.schema);
     displayDocumentation(results.documentation);
     displayDiagram(results.schema);
+    displayAnomalies(results.schema);
     resultsSection.style.display = 'block';
     resetConversionResult();
     updateConverterButtons();
@@ -379,6 +392,188 @@ async function displayDiagram(schema) {
         diagramContainer.innerHTML = '<p class="error-text">Error al generar el diagrama visual. Revisa el esquema bruto.</p>';
     }
 }
+
+
+// ===================== ANOMALÍAS (SIN EMOJIS, CON TABLAS) =====================
+function analyzeAnomalies(schema) {
+    const tables = schema.tables || [];
+    const anomaliesByType = {
+        singleColumnTables: [],
+        sequentialColumnNames: [],
+        implicitForeignKeys: [],
+        floatColumns: [],
+        tablesWithoutPK: [],
+        longVarcharColumns: []
+    };
+
+    for (const table of tables) {
+        // 1. Tabla con una sola columna
+        if (table.columns.length === 1) {
+            anomaliesByType.singleColumnTables.push({
+                table: table.name,
+                columnCount: table.columns.length
+            });
+        }
+
+        // 2. Columnas con nombres secuenciales (desnormalización)
+        const sequentialPattern = /^(col|field|attr|column|columna|campo)\d+$/i;
+        const sequentialCols = table.columns.filter(col => sequentialPattern.test(col.name));
+        if (sequentialCols.length > 0) {
+            anomaliesByType.sequentialColumnNames.push({
+                table: table.name,
+                columns: sequentialCols.map(c => c.name).join(', ')
+            });
+        }
+
+        // 3. Posibles claves foráneas implícitas (terminan en _id)
+        const implicitFkCols = table.columns.filter(col => col.name.toLowerCase().endsWith('_id'));
+        if (implicitFkCols.length > 0) {
+            anomaliesByType.implicitForeignKeys.push({
+                table: table.name,
+                columns: implicitFkCols.map(c => c.name).join(', ')
+            });
+        }
+
+        // 4. Columnas tipo FLOAT/DOUBLE
+        const floatCols = table.columns.filter(col => 
+            col.type.toLowerCase().includes('float') || col.type.toLowerCase().includes('double')
+        );
+        if (floatCols.length > 0) {
+            anomaliesByType.floatColumns.push({
+                table: table.name,
+                columns: floatCols.map(c => `${c.name} (${c.type})`).join(', ')
+            });
+        }
+
+        // 5. Tabla sin Primary Key
+        const hasPK = table.columns.some(col => col.primaryKey === true);
+        if (!hasPK) {
+            anomaliesByType.tablesWithoutPK.push({
+                table: table.name
+            });
+        }
+
+        // 6. Columnas VARCHAR mayores a 255
+        const longVarchars = table.columns.filter(col => {
+            const match = col.type.match(/varchar\((\d+)\)/i);
+            return match && parseInt(match[1]) > 255;
+        });
+        if (longVarchars.length > 0) {
+            anomaliesByType.longVarcharColumns.push({
+                table: table.name,
+                columns: longVarchars.map(c => `${c.name} (${c.type})`).join(', ')
+            });
+        }
+    }
+
+    return anomaliesByType;
+}
+
+function displayAnomalies(schema) {
+    const container = document.getElementById('anomaliesContainer');
+    if (!container) return;
+
+    const anomalies = analyzeAnomalies(schema);
+    const totalTables = schema.tables.length;
+    
+    // Contar cuántos tipos de anomalía tienen al menos una incidencia
+    let anomalyTypesWithIssues = 0;
+    let totalIncidencias = 0;
+    for (const key in anomalies) {
+        if (anomalies[key].length > 0) {
+            anomalyTypesWithIssues++;
+            totalIncidencias += anomalies[key].length;
+        }
+    }
+
+    // Generar el HTML con tres tarjetas
+    let html = `
+        <div class="schema-stats" style="margin-bottom: 24px;">
+            <div class="stat-card">
+                <h4>Tablas analizadas</h4>
+                <p>${totalTables}</p>
+            </div>
+            <div class="stat-card">
+                <h4>Tipos de anomalía</h4>
+                <p>${anomalyTypesWithIssues}</p>
+            </div>
+            <div class="stat-card">
+                <h4>Incidencias totales</h4>
+                <p>${totalIncidencias}</p>
+            </div>
+        </div>
+        <div class="anomalies-list">
+    `;
+
+    // Definir los títulos y descripciones de cada tipo de anomalía
+    const anomalyDefinitions = [
+        { key: 'singleColumnTables', title: 'Tablas con una sola columna', description: 'Una tabla con una única columna suele indicar un diseño pobre o una entidad mal modelada. Normalizar o fusionar con otra tabla podría ser necesario.' },
+        { key: 'sequentialColumnNames', title: 'Columnas con nombres secuenciales', description: 'Nombres como col1, col2, campo3 sugieren desnormalización (atributos repetidos horizontalmente). Se recomienda migrar a una estructura vertical (una fila por valor).' },
+        { key: 'implicitForeignKeys', title: 'Posibles claves foráneas implícitas', description: 'Columnas terminadas en "_id" que podrían referenciar otra tabla, pero sin restricción formal de integridad referencial. Considere agregar FOREIGN KEY o documentar la relación.' },
+        { key: 'floatColumns', title: 'Uso de FLOAT o DOUBLE', description: 'Los tipos flotantes pueden causar errores de redondeo en valores monetarios o críticos. Emplee DECIMAL/NUMERIC en su lugar.' },
+        { key: 'tablesWithoutPK', title: 'Tablas sin clave primaria', description: 'La ausencia de una clave primaria impide la identificación única de filas y afecta la integridad referencial.' },
+        { key: 'longVarcharColumns', title: 'Columnas VARCHAR excesivamente largas', description: 'VARCHAR con longitud > 255 puede degradar el rendimiento. Evalúe si realmente se necesita tanta capacidad.' }
+    ];
+
+    for (const def of anomalyDefinitions) {
+        const items = anomalies[def.key];
+        if (items && items.length > 0) {
+            html += `
+                <div class="anomaly-card">
+                    <div class="anomaly-header">
+                        <h3>${def.title}</h3>
+                        <span class="badge-issue">${items.length} incidencia(s)</span>
+                    </div>
+                    <p class="anomaly-description">${def.description}</p>
+                    <div class="anomaly-table-wrapper">
+                        <table class="anomaly-table">
+                            <thead>
+                                <tr><th>Tabla</th><th>Detalle</th></tr>
+                            </thead>
+                            <tbody>
+            `;
+            for (const item of items) {
+                if (def.key === 'singleColumnTables') {
+                    html += `<tr><td>${escapeHtml(item.table)}</td><td>La tabla tiene exactamente 1 columna.</td></tr>`;
+                } else if (def.key === 'sequentialColumnNames') {
+                    html += `<tr><td>${escapeHtml(item.table)}</td><td>Columnas con nombres secuenciales: ${escapeHtml(item.columns)}</td></tr>`;
+                } else if (def.key === 'implicitForeignKeys') {
+                    html += `<tr><td>${escapeHtml(item.table)}</td><td>Columnas: ${escapeHtml(item.columns)}</td></tr>`;
+                } else if (def.key === 'floatColumns') {
+                    html += `<tr><td>${escapeHtml(item.table)}</td><td>Columnas: ${escapeHtml(item.columns)}</td></tr>`;
+                } else if (def.key === 'tablesWithoutPK') {
+                    html += `<tr><td>${escapeHtml(item.table)}</td><td>No se definió ninguna clave primaria.</td></tr>`;
+                } else if (def.key === 'longVarcharColumns') {
+                    html += `<tr><td>${escapeHtml(item.table)}</td><td>Columnas: ${escapeHtml(item.columns)}</td></tr>`;
+                }
+            }
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    // Si no hay ningún tipo de anomalía, mostrar mensaje global
+    const hasAnyAnomaly = anomalyDefinitions.some(def => anomalies[def.key] && anomalies[def.key].length > 0);
+    if (!hasAnyAnomaly) {
+        html += `
+            <div class="anomaly-card clean">
+                <div class="anomaly-header">
+                    <h3>Sin anomalías detectadas</h3>
+                    <span class="badge-clean">OK</span>
+                </div>
+                <p class="clean-message">El esquema analizado no presenta ninguna de las anomalías revisadas: tablas de una columna, nombres secuenciales, claves foráneas implícitas, tipos float, falta de PK o VARCHAR excesivos.</p>
+            </div>
+        `;
+    }
+
+    html += `</div>`;
+    container.innerHTML = html;
+}
+//-------------------------------
 
 function displayDocumentation(documentation) {
     // Limpiar bloques de código markdown si la IA los incluyó
@@ -898,4 +1093,158 @@ pre { white-space: pre-wrap; }
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();
+}
+
+
+function printAnomalies() {
+    const anomaliesContainer = document.getElementById('anomaliesContainer');
+    if (!anomaliesContainer || !anomaliesContainer.innerHTML.trim()) {
+        showError('No hay anomalías para imprimir.');
+        return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        showError('No se pudo abrir la ventana de impresión.');
+        return;
+    }
+
+    const content = anomaliesContainer.cloneNode(true);
+    // Asegurar que los estilos se mantengan
+    const styles = document.querySelector('style').innerHTML;
+    printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Reporte de Anomalías</title>
+<style>
+    body { background: #0f111a; color: #f0f4ff; font-family: 'Outfit', sans-serif; padding: 20px; }
+    .anomalies-summary { background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; margin-bottom: 20px; }
+    .summary-stats { display: flex; gap: 20px; }
+    .summary-stat { display: flex; flex-direction: column; }
+    .stat-label { font-size: 0.8rem; color: #9ba1b6; }
+    .stat-value { font-size: 1.8rem; font-weight: 700; }
+    .warning { color: #ffaa44; }
+    .success { color: #4caf50; }
+    .anomaly-card { background: rgba(0,0,0,0.3); border-radius: 16px; padding: 16px; margin-bottom: 16px; border-left: 4px solid #ff5252; }
+    .anomaly-card.clean { border-left-color: #4caf50; }
+    .anomaly-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .badge-issue { background: #ff5252; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; }
+    .badge-clean { background: #4caf50; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; }
+    .anomaly-issues { margin: 0; padding-left: 20px; }
+    .anomaly-issues li { margin-bottom: 8px; }
+    .clean-message { color: #a5d6a7; margin: 0; }
+    ${styles}
+</style>
+</head>
+<body>
+    ${content.outerHTML}
+</body>
+</html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+}
+
+async function downloadAnomaliesPdf() {
+    const anomaliesContainer = document.getElementById('anomaliesContainer');
+    if (!anomaliesContainer || !anomaliesContainer.innerHTML.trim()) {
+        showError('No hay contenido de anomalías para exportar a PDF.');
+        return;
+    }
+
+    // Mostrar un indicador de carga si fuera necesario
+    const originalBtn = document.getElementById('downloadAnomaliesPdfBtn');
+    const originalContent = originalBtn.innerHTML;
+    originalBtn.disabled = true;
+    originalBtn.innerHTML = 'Generando PDF...';
+
+    try {
+        // Clonar el contenedor para no afectar la vista original
+        const cloneContainer = anomaliesContainer.cloneNode(true);
+        
+        // Estilos para el clon
+        cloneContainer.style.position = 'fixed';
+        cloneContainer.style.left = '-9999px';
+        cloneContainer.style.top = '0';
+        cloneContainer.style.width = '800px'; // Ancho fijo para consistencia
+        cloneContainer.style.backgroundColor = '#ffffff';
+        cloneContainer.style.color = '#000000';
+        cloneContainer.style.padding = '40px';
+        cloneContainer.style.zIndex = '-1';
+        
+        document.body.appendChild(cloneContainer);
+
+        // Estilos específicos para el PDF
+        const style = document.createElement('style');
+        style.textContent = `
+            .schema-stats { display: flex; gap: 20px; margin-bottom: 24px; }
+            .stat-card { background: #f0f4ff; padding: 16px; border-radius: 12px; text-align: center; flex: 1; border: 1px solid #d0d7ff; }
+            .stat-card h4 { margin: 0 0 8px 0; font-size: 0.9rem; color: #333; }
+            .stat-card p { font-size: 1.8rem; font-weight: 700; margin: 0; color: #5e6ad2; }
+            .anomaly-card { background: #f9f9ff; border-radius: 16px; padding: 20px; margin-bottom: 20px; border-left: 6px solid #ff5252; border-top: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee; }
+            .anomaly-card.clean { border-left-color: #4caf50; }
+            .anomaly-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+            .anomaly-header h3 { margin: 0; color: #1a1a1a; }
+            .badge-issue { background: #ff5252; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
+            .badge-clean { background: #4caf50; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
+            .anomaly-description { font-size: 0.95rem; color: #444; margin-bottom: 16px; line-height: 1.4; }
+            .anomaly-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            .anomaly-table th, .anomaly-table td { padding: 10px 12px; border-bottom: 1px solid #e0e0e0; text-align: left; }
+            .anomaly-table th { background: #f0f2f5; font-weight: 600; color: #333; }
+            .anomaly-table td { color: #555; }
+            .clean-message { background: #e8f5e9; padding: 15px; border-radius: 8px; color: #2e7d32; border: 1px solid #c8e6c9; }
+        `;
+        cloneContainer.prepend(style);
+
+        // Usar html2canvas para generar la imagen
+        const canvas = await html2canvas(cloneContainer, { 
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff'
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        
+        // Detectar jsPDF de forma robusta
+        let jsPDF;
+        if (window.jsPDF) {
+            jsPDF = window.jsPDF;
+        } else if (window.jspdf && window.jspdf.jsPDF) {
+            jsPDF = window.jspdf.jsPDF;
+        } else {
+            throw new Error('La librería jsPDF no está cargada correctamente.');
+        }
+
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgWidth = 190; // Margen de 10mm a cada lado
+        const pageHeight = 287; // Margen de 5mm arriba/abajo
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        let heightLeft = imgHeight;
+        let position = 10; // Margen superior inicial
+
+        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+        heightLeft -= (pageHeight - 10);
+
+        while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+        }
+        
+        pdf.save(`reporte_anomalias_${Date.now()}.pdf`);
+        
+        // Limpiar
+        document.body.removeChild(cloneContainer);
+
+    } catch (error) {
+        console.error('Error generando PDF de anomalías:', error);
+        showError('Error al generar el PDF: ' + error.message);
+    } finally {
+        originalBtn.disabled = false;
+        originalBtn.innerHTML = originalContent;
+    }
 }

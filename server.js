@@ -20,23 +20,23 @@ const openai = new OpenAI({
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Servir jsPDF desde node_modules
 app.get('/jspdf.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'node_modules/jspdf/dist/jspdf.umd.min.js'));
 });
 
-// Configuración de Multer para subir archivos 
+// Configuración de Multer para subir archivos
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, os.tmpdir);
+        cb(null, os.tmpdir());
     },
     filename: function (req, file, cb) {
         cb(null, Date.now() + '-' + file.originalname);
     }
 });
- 
+
 const upload = multer({ 
     storage: storage,
     limits: {
@@ -344,17 +344,16 @@ Actúa como un Arquitecto Senior de Base de Datos y Auditor Financiero. Tu tono 
 
 Tu tarea es realizar una DOCUMENTACIÓN TÉCNICA del siguiente esquema detectado como tipo: ${dbType === 'sql' ? 'RELACIONAL (SQL)' : 'NO RELACIONAL (NoSQL/JSON)'}.
 
-ESQUEMA PARA AUDITAR:
-${JSON.stringify(schema, null, 2)}
+ESQUEMA PARA AUDITAR: ${JSON.stringify(schema, null, 2)} (Titulo en h1 y de color morado)
 
 Reglas críticas:
     - Debes seguir EXACTAMENTE la estructura indicada abajo.
     - NO puedes cambiar títulos, orden, formato ni nombres de secciones.
     - NO puedes omitir secciones.
     - NO puedes agregar secciones nuevas.
-    - ESTRUCTURA OBLIGATORIA DE TU RESPUESTA (Usa Markdown):
+    - ESTRUCTURA OBLIGATORIA DE TU RESPUESTA (Usa Markdown)
 
-1. **ANÁLISIS GENERAL**
+1. **ANÁLISIS GENERAL** (Subtitulo en h2 y de color morado)
    - Muestra una barra de progreso visual al inicio según el nivel de cumplimiento (normalización, integridad, tipos de datos): Ej: [████████░░] 80%
    - Métricas: Indica de forma limpia el % de integridad, normalización y consistencia de tipos en guiones.
         - Integridad: XX%
@@ -364,10 +363,10 @@ Reglas críticas:
         - Si es 100%, di: "TODO ESTÁ CORRECTO, pero puedo sugerir mejoras opcionales".
         - Si es <100%, explica QUÉ fallas encontraste y CÓMO corregirlas de forma técnica.
 
-2. **DICCIONARIO DE DATOS**
+2. **DICCIONARIO DE DATOS** (Subtitulo en h2 y de color morado)
    - REGLAS OBLIGATORIAS:Cada tabla DEBE usar formato de tabla Markdown, NO usar listas, NO usar texto libre para campos, SIEMPRE usar esta estructura exacta para mejorar la comprension
    
-   NombreTabla
+   NombreTabla (SubSubtitulo en h3 y de color blanco en negrita)
    Descripción: texto claro de la tabla
    Campo | Tipo de dato	| Descripción | Observaciones
 
@@ -386,13 +385,13 @@ Reglas críticas:
    - Detalla los campos críticos para auditoría financiera (ej: campos de monto, fecha, usuario) y evalúa su diseño.
    - Muestra cada tablas con sus campos de forma organizada, limpia y sin ruido visual
 
-3. **ANÁLISIS DE VÍNCULOS Y RELACIONES**
+3. **ANÁLISIS DE VÍNCULOS Y RELACIONES** (Subtitulo en h2 y de color morado)
    - Crítica detallada sobre cómo se conectan los datos. ¿Hay integridad referencial? ¿Faltan llaves foráneas críticas para un sistema contable?
    - Evalúa el mapa de relaciones. ¿Existen relaciones huérfanas? ¿Faltan índices compuestos o llaves foráneas?
    - Valida si el diseño soporta ACID compliance y trazabilidad de auditoría.
    - Formato: Enumera cada comentario de forma clara, sin rodeos, y con ejemplos técnicos si es necesario.
 
-4. **SUGERENCIAS DE OPTIMIZACIÓN**
+4. **SUGERENCIAS DE OPTIMIZACIÓN** (Subtitulo en h2 y de color morado)
    - Brinda observaciones críticas (mínimo 5, máximo 15 según la complejidad basados en estándares globales).
    - Incluye estándares internacionales (ej: sugerir nombres en inglés como 'companies' en lugar de 'empresas').
    - Señala redundancias y problemas de normalización.
@@ -403,7 +402,7 @@ Reglas críticas:
         - [ESTÁNDAR]
     - Enumera cada comentario de forma clara, sin rodeos, y con ejemplos técnicos si es necesario.
 
-5. **CRÍTICA OBLIGATORIA**
+5. **CRÍTICA OBLIGATORIA** (Subtitulo en h2 y de color morado)
    - Señala errores graves. Sé directo y rudo con fallos que rompan el sistema en producción (ej: "Uso de FLOAT para dinero", "Falta de Timestamps de creación/actualización").
    - Evalúa si el diseño soporta auditorías financieras externas.
 
