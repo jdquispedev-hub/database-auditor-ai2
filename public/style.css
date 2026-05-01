@@ -1029,3 +1029,240 @@ body {
     border-radius: 8px;
     margin-top: 8px;
 }
+
+/* Responsive: Convertir tablas del diccionario de datos en tarjetas apiladas en móviles */
+@media (max-width: 768px) {
+    /* Para las tablas dentro del contenido markdown (Diccionario de Datos) */
+    .markdown-body table {
+        display: block;
+        width: 100%;
+        border: none;
+    }
+    
+    .markdown-body thead {
+        display: none; /* Ocultar cabecera original */
+    }
+    
+    .markdown-body tbody {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    .markdown-body tr {
+        display: flex;
+        flex-direction: column;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 8px;
+        border: 1px solid var(--border-color);
+    }
+    
+    .markdown-body td {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        text-align: left;
+    }
+    
+    .markdown-body td:last-child {
+        border-bottom: none;
+    }
+    
+    /* Etiquetas para cada celda */
+    .markdown-body td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--accent-hover);
+        width: 35%;
+        flex-shrink: 0;
+    }
+    
+    /* Asegurar que el contenido de la celda se ajuste */
+    .markdown-body td:first-child::before { content: "Campo:"; }
+    .markdown-body td:nth-child(2)::before { content: "Tipo:"; }
+    .markdown-body td:nth-child(3)::before { content: "Descripción:"; }
+    .markdown-body td:nth-child(4)::before { content: "Observaciones:"; }
+    
+    /* Para las tablas de anomalías (que ya tienen estructura de tabla), también convertir a tarjetas si es necesario */
+    .anomaly-table {
+        display: block;
+        width: 100%;
+    }
+    
+    .anomaly-table thead {
+        display: none;
+    }
+    
+    .anomaly-table tbody {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .anomaly-table tr {
+        display: flex;
+        flex-direction: column;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 12px;
+        border: 1px solid var(--border-color);
+    }
+    
+    .anomaly-table td {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 6px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .anomaly-table td:last-child {
+        border-bottom: none;
+    }
+    
+    .anomaly-table td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--accent-hover);
+        width: 40%;
+        flex-shrink: 0;
+    }
+    
+    .anomaly-table td:first-child::before { content: "Tabla:"; }
+    .anomaly-table td:last-child::before { content: "Detalle:"; }
+}
+
+/* ============================================
+   Tablas responsivas en móviles (formato tarjeta)
+   ============================================ */
+@media (max-width: 768px) {
+    /* ----- Diccionario de Datos (tablas markdown) ----- */
+    .markdown-body table {
+        display: block;
+        width: 100%;
+        border: none;
+    }
+    
+    .markdown-body thead {
+        display: none; /* Oculta la cabecera original */
+    }
+    
+    .markdown-body tbody {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    .markdown-body tr {
+        display: flex;
+        flex-direction: column;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 8px;
+        border: 1px solid var(--border-color);
+    }
+    
+    .markdown-body td {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        text-align: left;
+    }
+    
+    .markdown-body td:last-child {
+        border-bottom: none;
+    }
+    
+    /* Etiquetas fijas según la posición de la columna */
+    .markdown-body td:first-child::before {
+        content: "Campo:";
+        font-weight: 600;
+        color: var(--accent-hover);
+        width: 35%;
+        flex-shrink: 0;
+    }
+    .markdown-body td:nth-child(2)::before {
+        content: "Tipo:";
+        font-weight: 600;
+        color: var(--accent-hover);
+        width: 35%;
+        flex-shrink: 0;
+    }
+    .markdown-body td:nth-child(3)::before {
+        content: "Descripción:";
+        font-weight: 600;
+        color: var(--accent-hover);
+        width: 35%;
+        flex-shrink: 0;
+    }
+    .markdown-body td:nth-child(4)::before {
+        content: "Observaciones:";
+        font-weight: 600;
+        color: var(--accent-hover);
+        width: 35%;
+        flex-shrink: 0;
+    }
+    
+    /* ----- Tablas de Anomalías (2 columnas) ----- */
+    .anomaly-table {
+        display: block;
+        width: 100%;
+    }
+    
+    .anomaly-table thead {
+        display: none;
+    }
+    
+    .anomaly-table tbody {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .anomaly-table tr {
+        display: flex;
+        flex-direction: column;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 12px;
+        border: 1px solid var(--border-color);
+    }
+    
+    .anomaly-table td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 6px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .anomaly-table td:last-child {
+        border-bottom: none;
+    }
+    
+    .anomaly-table td:first-child::before {
+        content: "Tabla:";
+        font-weight: 600;
+        color: var(--accent-hover);
+        width: 35%;
+        flex-shrink: 0;
+    }
+    .anomaly-table td:last-child::before {
+        content: "Detalle:";
+        font-weight: 600;
+        color: var(--accent-hover);
+        width: 35%;
+        flex-shrink: 0;
+    }
+}
