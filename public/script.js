@@ -10,6 +10,7 @@ const fileName = document.getElementById('fileName');
 const fileSize = document.getElementById('fileSize');
 const removeFileBtn = document.getElementById('removeFileBtn');
 const analyzeBtn = document.getElementById('analyzeBtn');
+const analyzePythonBtn = document.getElementById('analyzePythonBtn');
 const resultsSection = document.getElementById('resultsSection');
 const errorSection = document.getElementById('errorSection');
 const errorMessage = document.getElementById('errorMessage');
@@ -28,6 +29,7 @@ function setupEventListeners() {
     
     removeFileBtn.addEventListener('click', removeFile);
     analyzeBtn.addEventListener('click', analyzeFile);
+    analyzePythonBtn.addEventListener('click', analyzeFileWithPython);
     
     // Nuevo listener para convertidor
     const targetFormat = document.getElementById('targetFormat');
@@ -157,11 +159,11 @@ function handleDrop(event) {
 
 function processFile(file) {
     // Validar tipo de archivo
-    const allowedExtensions = ['.sql', '.json', '.txt', '.dbml'];
+    const allowedExtensions = ['.sql', '.json', '.txt', '.dbml', '.yaml', '.yml', '.xlsx', '.csv'];
     const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
     
     if (!allowedExtensions.includes(fileExtension)) {
-        showError('Tipo de archivo no permitido. Solo se permiten: .sql, .json, .txt, .dbml');
+        showError('Tipo de archivo no permitido. Solo se permiten: .sql, .json, .txt, .dbml, .yaml, .yml, .xlsx, .csv');
         return;
     }
     
@@ -184,6 +186,7 @@ function displayFileInfo() {
     fileSize.textContent = formatFileSize(selectedFile.size);
     fileInfo.style.display = 'block';
     analyzeBtn.disabled = false;
+    analyzePythonBtn.disabled = false;
 }
 
 function removeFile() {
@@ -191,6 +194,7 @@ function removeFile() {
     fileInput.value = '';
     fileInfo.style.display = 'none';
     analyzeBtn.disabled = true;
+    analyzePythonBtn.disabled = true;
     hideResults();
     resetConversionResult();
     hideError();
@@ -204,11 +208,11 @@ function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// Análisis de archivo
+// Análisis de archivo con IA
 async function analyzeFile() {
     if (!selectedFile) return;
     
-    showLoading(true);
+    showLoading(true, 'ai');
     hideResults();
     hideError();
     
@@ -238,27 +242,69 @@ async function analyzeFile() {
         showError('Error de conexión o de red: ' + error.message);
         console.error('Fetch Error:', error);
     } finally {
-        showLoading(false);
+        showLoading(false, 'ai');
     }
 }
 
-function showLoading(show) {
-    const btnText = analyzeBtn.querySelector('.btn-text');
-    const spinner = analyzeBtn.querySelector('.loading-spinner');
+// Análisis de archivo con Python
+async function analyzeFileWithPython() {
+    if (!selectedFile) return;
+    
+    showLoading(true, 'python');
+    hideResults();
+    hideError();
+    
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    
+    try {
+        const response = await fetch('/analyze-python', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            currentResults = result;
+            try {
+                displayResults(result);
+            } catch (renderError) {
+                console.error('Render error:', renderError);
+                showError('Error al mostrar los resultados: ' + renderError.message);
+            }
+        } else {
+            showError(result.error || 'Error al procesar el archivo con Python');
+        }
+    } catch (error) {
+        showError('Error de conexión o de red: ' + error.message);
+        console.error('Fetch Error:', error);
+    } finally {
+        showLoading(false, 'python');
+    }
+}
+
+function showLoading(show, type = 'ai') {
+    const btn = type === 'python' ? analyzePythonBtn : analyzeBtn;
+    const btnText = btn.querySelector('.btn-text');
+    const spinner = btn.querySelector('.loading-spinner');
     
     if (show) {
-        btnText.textContent = 'Analizando BD...Esto puede tardar unos segundos';
+        const message = type === 'python' ? 'Analizando con Python...' : 'Analizando con IA...';
+        btnText.textContent = message;
         spinner.style.display = 'inline-block';
-        analyzeBtn.disabled = true;
+        btn.disabled = true;
     } else {
-        btnText.textContent = 'Analizar con IA';
+        const originalText = type === 'python' ? 'Análisis Python' : 'Análisis con IA';
+        btnText.textContent = originalText;
         spinner.style.display = 'none';
-        analyzeBtn.disabled = !selectedFile;
+        btn.disabled = false;
     }
 }
 
 // Mostrar resultados
 function displayResults(results) {
+    // ...
     displaySchema(results.schema);
     displayDocumentation(results.documentation);
     displayDiagram(results.schema);
@@ -892,6 +938,39 @@ async function convertSchema() {
     const convertBtn = document.getElementById('convertBtn');
     const convertedCodeEl = document.getElementById('convertedCode');
     const placeholderText = document.querySelector('.placeholder-text');
+
+    // Si se analizó con Python y ya tenemos la conversión disponible localmente
+    if (currentResults.analysisType === 'python' && currentResults.conversions && currentResults.conversions.success) {
+        let code = '';
+        const formats = currentResults.conversions.formats || {};
+        const fmt = targetFormat ? targetFormat.toLowerCase() : '';
+
+        if (fmt === 'sql' || fmt === 'mariadb') {
+            code = formats.mysql || formats.postgres || formats.sqlite || '';
+        } else if (fmt === 'mongodb') {
+            code = formats.mongodb || '';
+        } else if (fmt === 'prisma') {
+            code = formats.prisma || '';
+        } else if (fmt === 'graphql') {
+            code = formats.graphql || '';
+        } else if (fmt === 'json') {
+            code = formats.json_schema || '';
+        } else if (formats[fmt]) {
+            code = formats[fmt];
+        }
+
+        if (typeof code === 'object') {
+            code = JSON.stringify(code, null, 2);
+        }
+
+        if (code) {
+            convertedCodeEl.textContent = code;
+            convertedCodeEl.style.display = 'block';
+            if (placeholderText) placeholderText.style.display = 'none';
+            updateConverterButtons();
+            return;
+        }
+    }
     
     // Mostrar cargando
     convertBtn.disabled = true;

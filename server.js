@@ -503,6 +503,170 @@ app.get('/test-openai', async (req, res) => {
     }
 });
 
+// Endpoint para análisis con Python
+app.post('/analyze-python', upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No se ha subido ningún archivo' });
+        }
+
+        const filePath = req.file.path;
+        const fileExtension = path.extname(req.file.originalname).toLowerCase();
+        
+        // Validar que Python esté instalado
+        const { spawn } = require('child_process');
+        
+        // Llamar al script Python
+        const pythonProcess = spawn('python', ['python_analyzer/main.py', '--file', filePath], {
+            cwd: __dirname,
+            stdio: ['pipe', 'pipe', 'pipe']
+        });
+
+        let output = '';
+        let errorOutput = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+            output += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+            errorOutput += data.toString();
+        });
+
+        pythonProcess.on('close', (code) => {
+            // Eliminar archivo temporal
+            fs.unlinkSync(filePath);
+
+            if (code !== 0) {
+                console.error('Python script error:', errorOutput);
+                return res.status(500).json({
+                    error: 'Error en el análisis Python: ' + errorOutput
+                });
+            }
+
+            try {
+                const result = JSON.parse(output);
+                
+                if (result.success) {
+                    // Formatear resultados para compatibilidad con frontend
+                    const formattedResult = {
+                        success: true,
+                        schema: result.analysis.schema,
+                        documentation: generatePythonDocumentation(result.analysis),
+                        conversions: result.analysis.conversions,
+                        analysisType: 'python',
+                        fileName: req.file.originalname
+                    };
+                    
+                    res.json(formattedResult);
+                } else {
+                    res.status(400).json({
+                        error: result.error || 'Error en el análisis Python'
+                    });
+                }
+            } catch (parseError) {
+                console.error('JSON parse error:', parseError);
+                res.status(500).json({
+                    error: 'Error al procesar resultados de Python'
+                });
+            }
+        });
+
+        pythonProcess.on('error', (error) => {
+            // Eliminar archivo temporal
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+            
+            console.error('Python process error:', error);
+            res.status(500).json({
+                error: 'Error al ejecutar Python. Asegúrate de tener Python instalado.'
+            });
+        });
+
+    } catch (error) {
+        console.error('Error en el procesamiento Python:', error);
+
+        // Eliminar archivo si existe
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+
+        res.status(500).json({
+            error: error.message || 'Error al procesar el archivo'
+        });
+    }
+});
+
+// Función para generar documentación básica con Python
+function generatePythonDocumentation(analysis) {
+    const schema = analysis.schema;
+    const validation = analysis.validation;
+    const metrics = analysis.metrics;
+    const anomalies = analysis.anomalies;
+
+    let documentation = `# Documentación Técnica de Base de Datos\n\n`;
+    documentation += `## 📊 Análisis General\n\n`;
+    
+    // Métricas
+    documentation += `### Métricas del Esquema\n`;
+    documentation += `- **Tablas Totales**: ${metrics.totalTables}\n`;
+    documentation += `- **Columnas Totales**: ${metrics.totalColumns}\n`;
+    documentation += `- **Claves Primarias**: ${metrics.totalPrimaryKeys}\n`;
+    documentation += `- **Claves Foráneas**: ${metrics.totalForeignKeys}\n`;
+    documentation += `- **Promedio de Columnas por Tabla**: ${metrics.avgColumnsPerTable?.toFixed(1) || 0}\n`;
+    documentation += `- **Puntaje de Normalización**: ${metrics.normalizationScore?.toFixed(1) || 0}%\n\n`;
+
+    // Validación
+    if (validation && !validation.isValid) {
+        documentation += `### ⚠️ Problemas Detectados\n`;
+        validation.errors?.forEach(error => {
+            documentation += `- ${error}\n`;
+        });
+        documentation += `\n`;
+    }
+
+    if (validation && validation.warnings?.length > 0) {
+        documentation += `### 🔍 Advertencias\n`;
+        validation.warnings?.forEach(warning => {
+            documentation += `- ${warning}\n`;
+        });
+        documentation += `\n`;
+    }
+
+    // Anomalías
+    if (anomalies && anomalies.length > 0) {
+        documentation += `### 🚨 Anomalías Encontradas\n`;
+        anomalies.forEach(anomaly => {
+            const severity = anomaly.severity === 'high' ? '🔴' : 
+                           anomaly.severity === 'medium' ? '🟡' : '🟢';
+            documentation += `- ${severity} **${anomaly.table}**: ${anomaly.description}\n`;
+            documentation += `  - *Recomendación*: ${anomaly.recommendation}\n`;
+        });
+        documentation += `\n`;
+    }
+
+    // Diccionario de datos
+    documentation += `## 📋 Diccionario de Datos\n\n`;
+    schema.tables?.forEach(table => {
+        documentation += `### **${table.name}**\n\n`;
+        documentation += `**Descripción**: Tabla con ${table.columns?.length || 0} columnas.\n\n`;
+        documentation += `| Campo | Tipo de dato | Nulable | PK | Auto |\n`;
+        documentation += `|-------|--------------|----------|----|------|\n`;
+        
+        table.columns?.forEach(column => {
+            const nullable = column.nullable ? '✓' : '✗';
+            const pk = column.primaryKey ? '✓' : '✗';
+            const auto = column.autoIncrement ? '✓' : '✗';
+            
+            documentation += `| ${column.name} | ${column.type} | ${nullable} | ${pk} | ${auto} |\n`;
+        });
+        documentation += `\n`;
+    });
+
+    return documentation;
+}
+
 // Endpoint para subir y analizar archivos
 app.post('/upload', upload.single('file'), async (req, res) => {
     try {
@@ -561,6 +725,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
             success: true,
             schema: schema,
             documentation: documentation,
+            analysisType: 'ai',
             fileName: req.file.originalname
         });
 

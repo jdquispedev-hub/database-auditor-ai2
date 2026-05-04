@@ -46,8 +46,8 @@
                         </svg>
                     </div>
                     <h3>Arrastra tu archivo aquí</h3>
-                    <p>Formatos permitidos: .sql, .json, .txt, .dbml (Máx. 10MB)</p>
-                    <input type="file" id="fileInput" accept=".sql,.json,.txt,.dbml" hidden>
+                    <p>Formatos permitidos: .sql, .json, .txt, .dbml, .yaml, .yml, .xlsx, .csv (Máx. 10MB)</p>
+                    <input type="file" id="fileInput" accept=".sql,.json,.txt,.dbml,.yaml,.yml,.xlsx,.csv" hidden>
                     <button class="select-btn" onclick="document.getElementById('fileInput').click()">
                         Explorar Archivos
                     </button>
@@ -75,14 +75,40 @@
                 </div>
 
                 <div class="action-container">
-                    <button class="analyze-btn glow-effect" id="analyzeBtn" disabled>
-                        <span class="btn-text">Analizar con IA</span>
-                        <span class="loading-spinner" style="display: none;">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
-                            </svg>
-                        </span>
-                    </button>
+                    <div class="analysis-buttons">
+                        <button class="analyze-btn ai-btn glow-effect" id="analyzeBtn" disabled>
+                            <span class="btn-icon">🤖</span>
+                            <span class="btn-text">Análisis con IA</span>
+                            <span class="loading-spinner" style="display: none;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                                </svg>
+                            </span>
+                        </button>
+                        
+                        <button class="analyze-btn python-btn" id="analyzePythonBtn" disabled>
+                            <span class="btn-icon">🐍</span>
+                            <span class="btn-text">Análisis Python</span>
+                            <span class="loading-spinner" style="display: none;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                                </svg>
+                            </span>
+                        </button>
+                    </div>
+                    
+                    <div class="analysis-info">
+                        <div class="info-card ai-info">
+                            <h4>🤖 Análisis con IA</h4>
+                            <p>Experto, contexto de negocio, sugerencias inteligentes</p>
+                            <small>Requiere API Key, más lento</small>
+                        </div>
+                        <div class="info-card python-info">
+                            <h4>🐍 Análisis Python</h4>
+                            <p>Rápido, gratuito, análisis técnico completo</p>
+                            <small>Sin dependencias, instantáneo</small>
+                        </div>
+                    </div>
                 </div>
             </section>
 
