@@ -1,19 +1,33 @@
 #!/usr/bin/env python3
-"""
-Analizador de Bases de Datos con Python - Sistema Híbrido
-Reemplaza 80% de funcionalidades de OpenAI con librerías Python
-"""
+import os
+import sys
+import warnings
+
+# Suprimir TODAS las advertencias y logs ruidosos antes de importar nada más
+warnings.filterwarnings("ignore")
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['QT_LOGGING_RULES'] = '*.debug=false;*.warning=false'
+
+# Configurar backend de Matplotlib para que no intente abrir ventanas (entorno servidor)
+import matplotlib
+matplotlib.use('Agg')
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
 # Importar analizadores
-from analyzers.sql_analyzer import SQLAnalyzer
-from analyzers.nosql_analyzer import NoSQLAnalyzer
-from analyzers.diagram_generator import DiagramGenerator
-from analyzers.schema_converter import SchemaConverter
+try:
+    from analyzers.sql_analyzer import SQLAnalyzer
+    from analyzers.nosql_analyzer import NoSQLAnalyzer
+    from analyzers.diagram_generator import DiagramGenerator
+    from analyzers.schema_converter import SchemaConverter
+except ImportError as e:
+    print(json.dumps({
+        'success': False, 
+        'error': f"Faltan dependencias de Python: {str(e)}. Por favor ejecuta: pip install sqlglot pandas matplotlib networkx pyyaml jsonschema"
+    }))
+    sys.exit(0) # Salida limpia para que el server capture el JSON
 
 class DatabaseAnalyzer:
     def __init__(self):
@@ -23,16 +37,13 @@ class DatabaseAnalyzer:
         self.schema_converter = SchemaConverter()
     
     def analyze_file(self, file_path: str) -> dict:
-        """Analiza cualquier archivo de base de datos"""
         try:
             file_path = Path(file_path)
             if not file_path.exists():
                 raise FileNotFoundError(f"Archivo no encontrado: {file_path}")
             
-            # Determinar tipo de archivo
             file_extension = file_path.suffix.lower()
             
-            # Leer contenido
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             
@@ -43,9 +54,8 @@ class DatabaseAnalyzer:
                 'analysis': {}
             }
             
-            # Analizar según tipo
             if file_extension in ['.sql', '.txt']:
-                result['analysis'] = self._analyze_sql(content, file_extension)
+                result['analysis'] = self._analyze_sql(content)
             elif file_extension == '.json':
                 result['analysis'] = self._analyze_json(content)
             elif file_extension in ['.yaml', '.yml']:
@@ -74,10 +84,8 @@ class DatabaseAnalyzer:
                 'fileName': file_path.name if 'file_path' in locals() else 'unknown'
             }
     
-    def _analyze_sql(self, content: str, file_extension: str) -> dict:
-        """Analiza archivos SQL/TXT"""
+    def _analyze_sql(self, content: str) -> dict:
         schema = self.sql_analyzer.parse_sql(content)
-        
         return {
             'schema': schema,
             'type': 'sql',
@@ -87,9 +95,7 @@ class DatabaseAnalyzer:
         }
     
     def _analyze_json(self, content: str) -> dict:
-        """Analiza archivos JSON/NoSQL"""
         schema = self.nosql_analyzer.parse_json(content)
-        
         return {
             'schema': schema,
             'type': 'nosql',
@@ -99,9 +105,7 @@ class DatabaseAnalyzer:
         }
     
     def _analyze_yaml(self, content: str) -> dict:
-        """Analiza archivos YAML"""
         schema = self.nosql_analyzer.parse_yaml(content)
-        
         return {
             'schema': schema,
             'type': 'nosql',
@@ -111,9 +115,7 @@ class DatabaseAnalyzer:
         }
     
     def _analyze_excel(self, file_path: Path) -> dict:
-        """Analiza archivos Excel"""
         schema = self.nosql_analyzer.parse_excel(file_path)
-        
         return {
             'schema': schema,
             'type': 'excel',
@@ -125,20 +127,13 @@ class DatabaseAnalyzer:
 def main():
     parser = argparse.ArgumentParser(description='Analizador de Bases de Datos con Python')
     parser.add_argument('--file', required=True, help='Ruta del archivo a analizar')
-    parser.add_argument('--output', help='Archivo de salida JSON (opcional)')
-    
     args = parser.parse_args()
     
-    # Crear analizador y procesar archivo
     analyzer = DatabaseAnalyzer()
     result = analyzer.analyze_file(args.file)
     
-    # Salida JSON
-    if args.output:
-        with open(args.output, 'w', encoding='utf-8') as f:
-            json.dump(result, f, indent=2, ensure_ascii=False)
-    else:
-        print(json.dumps(result, indent=2, ensure_ascii=False))
+    # Salida JSON ÚNICA Y LIMPIA
+    print(json.dumps(result, indent=2, ensure_ascii=False))
 
 if __name__ == "__main__":
     main()

@@ -5,7 +5,6 @@ Reemplaza análisis de OpenAI para SQL con librerías especializadas
 
 import re
 import sqlglot
-from sql_metadata import Parser
 from typing import Dict, List, Any
 
 class SQLAnalyzer:
@@ -18,319 +17,178 @@ class SQLAnalyzer:
     def parse_sql(self, content: str) -> Dict[str, Any]:
         """Parsea contenido SQL y extrae esquema completo"""
         try:
-            # Detectar dialecto automáticamente
             dialect = self._detect_dialect(content)
-            
-            # Parsear con SQLGlot
             parsed = sqlglot.parse(content, dialect=dialect)
-            
-            # Extraer tablas y relaciones
             tables = []
             relations = []
             
             for stmt in parsed:
+                if not stmt: continue
                 if stmt.key == 'create':
-                    table_info = self._extract_table_info(stmt)
-                    if table_info:
-                        tables.append(table_info)
-                
-                # Extraer relaciones FOREIGN KEY
-                if stmt.key == 'alter':
+                    is_table = str(stmt.args.get('kind', '')).upper() == 'TABLE'
+                    if not is_table:
+                        is_table = hasattr(stmt.this, 'key') and stmt.this.key == 'schema'
+                    if is_table:
+                        table_info = self._extract_table_info(stmt)
+                        if table_info and table_info.get('columns'):
+                            tables.append(table_info)
+                elif stmt.key == 'alter':
                     relation = self._extract_relation(stmt)
                     if relation:
                         relations.append(relation)
             
-            return {
-                'tables': tables,
-                'relations': relations,
-                'dialect': dialect,
-                'totalTables': len(tables),
-                'totalRelations': len(relations)
-            }
+            for table in tables:
+                for fk in table.get('foreignKeys', []):
+                    relations.append({
+                        'from': table['name'],
+                        'to': fk['references']['table'],
+                        'type': 'foreign_key',
+                        'column': fk['column'],
+                        'references': fk['references']['column']
+                    })
             
-        except Exception as e:
-            # Fallback a parsing básico con regex
+            implicit_relations = self._detect_implicit_relations(tables)
+            relations.extend(implicit_relations)
+            
+            seen_rels = set()
+            unique_relations = []
+            for rel in relations:
+                source, target, col = str(rel['from']), str(rel['to']), str(rel.get('column', ''))
+                rel_id = f"{source.lower()}->{target.lower()} ({col.lower()})"
+                if rel_id not in seen_rels and source.lower() != target.lower():
+                    unique_relations.append({
+                        'from': source, 'to': target, 'type': rel.get('type', 'foreign_key'),
+                        'column': col, 'references': str(rel.get('references', 'id'))
+                    })
+                    seen_rels.add(rel_id)
+            
+            return {
+                'tables': tables, 'relations': unique_relations, 'dialect': dialect,
+                'totalTables': len(tables), 'totalRelations': len(unique_relations)
+            }
+        except Exception:
             return self._fallback_parse(content)
     
     def _detect_dialect(self, content: str) -> str:
-        """Detecta el dialecto SQL basado en patrones"""
-        content_lower = content.lower()
-        
-        if 'bigint' in content_lower or 'serial' in content_lower:
-            return 'postgres'
-        elif 'auto_increment' in content_lower:
-            return 'mysql'
-        elif 'identity' in content_lower:
-            return 'sqlserver'
-        elif any(keyword in content_lower for keyword in ['bigquery', 'array', 'struct']):
-            return 'bigquery'
-        else:
-            return 'mysql'  # Default
+        c = content.lower()
+        if 'bigint' in c or 'serial' in c: return 'postgres'
+        return 'mysql'
     
     def _extract_table_info(self, stmt) -> Dict[str, Any]:
-        """Extrae información completa de una tabla"""
-        table_name = stmt.args.get('this', {}).get('this', 'unknown')
-        
-        columns = []
-        primary_keys = []
-        foreign_keys = []
-        
-        # Extraer columnas
-        for column_def in stmt.args.get('columns', []):
-            if column_def.key == 'column_def':
-                col_name = column_def.args.get('this', {}).get('this', 'unknown')
-                col_type = self._get_column_type(column_def)
-                
-                # Detectar constraints
-                nullable = True
-                auto_increment = False
-                primary_key = False
-                
-                for constraint in column_def.args.get('constraints', []):
-                    if constraint.key == 'not':
-                        nullable = False
-                    elif constraint.key == 'primary_key':
+        schema_expr = stmt.this
+        if not schema_expr: return None
+        if schema_expr.key == 'schema':
+            table_name = str(schema_expr.this.this) if hasattr(schema_expr.this, 'this') else str(schema_expr.this)
+            expressions = schema_expr.args.get('expressions', [])
+        else:
+            table_name = str(schema_expr.this)
+            expressions = stmt.args.get('columns', [])
+            
+        columns, primary_keys, foreign_keys = [], [], []
+        for part in expressions:
+            if not part: continue
+            if part.key == 'columndef':
+                col_name = str(part.this.this) if hasattr(part.this, 'this') else str(part.this)
+                col_type = self._get_column_type(part)
+                nullable, auto_increment, primary_key = True, False, False
+                for constraint in part.args.get('constraints', []):
+                    kind = constraint.args.get('kind')
+                    ctype = str(kind.key).lower() if kind and hasattr(kind, 'key') else str(kind).lower()
+                    if 'not' in ctype: nullable = False
+                    elif 'primary' in ctype:
                         primary_key = True
                         primary_keys.append(col_name)
-                    elif constraint.key == 'auto_increment':
-                        auto_increment = True
-                
-                columns.append({
-                    'name': col_name,
-                    'type': col_type,
-                    'nullable': nullable,
-                    'primaryKey': primary_key,
-                    'autoIncrement': auto_increment
-                })
+                    elif 'auto' in ctype or 'identity' in ctype: auto_increment = True
+                columns.append({'name': col_name, 'type': col_type, 'nullable': nullable, 'primaryKey': primary_key, 'autoIncrement': auto_increment})
+            elif part.key == 'foreignkey':
+                cols = [str(c.this) for c in part.args.get('expressions', [])]
+                reference = part.args.get('reference')
+                if reference and reference.this:
+                    ref_table = str(reference.this.this.this) if hasattr(reference.this, 'this') and hasattr(reference.this.this, 'this') else str(reference.this.this)
+                    ref_cols = [str(c.this) for c in reference.this.args.get('expressions', [])]
+                    for col in cols:
+                        foreign_keys.append({'column': col, 'references': {'table': ref_table, 'column': ref_cols[0] if ref_cols else 'id'}})
+            elif part.key == 'primarykey':
+                primary_keys.extend([str(c.this) for c in part.args.get('expressions', [])])
 
+        primary_keys = list(dict.fromkeys(primary_keys))
         for col in columns:
-            if col.get('primaryKey') and col['name'] not in primary_keys:
-                primary_keys.append(col['name'])
-        
-        return {
-            'name': table_name,
-            'columns': columns,
-            'primaryKeys': primary_keys,
-            'foreignKeys': foreign_keys
-        }
-    
-    def _get_column_type(self, column_def) -> str:
-        """Extrae tipo de dato de columna"""
-        type_def = column_def.args.get('kind', {})
-        if hasattr(type_def, 'this'):
-            return str(type_def.this)
-        return 'VARCHAR'
-    
+            if col['name'] in primary_keys: col['primaryKey'] = True
+        return {'name': table_name, 'columns': columns, 'primaryKeys': primary_keys, 'foreignKeys': foreign_keys}
+
     def _extract_relation(self, stmt) -> Dict[str, Any]:
-        """Extrae relaciones FOREIGN KEY"""
-        # Implementar extracción de relaciones
+        try:
+            table_name = str(stmt.this.this) if hasattr(stmt.this, 'this') else str(stmt.this)
+            for action in stmt.args.get('actions', []):
+                kind = action.args.get('kind')
+                if kind and kind.key == 'foreignkey':
+                    cols = [str(c.this) for c in kind.args.get('expressions', [])]
+                    ref = kind.args.get('reference')
+                    if ref and ref.this:
+                        ref_table = str(ref.this.this.this) if hasattr(ref.this, 'this') and hasattr(ref.this.this, 'this') else str(ref.this.this)
+                        ref_cols = [str(c.this) for c in ref.this.args.get('expressions', [])]
+                        return {'from': table_name, 'to': ref_table, 'type': 'foreign_key', 'column': cols[0] if cols else 'id', 'references': ref_cols[0] if ref_cols else 'id'}
+        except: pass
+        return None
+
+    def _get_column_type(self, column_def) -> str:
+        kind = column_def.args.get('kind', {})
+        if hasattr(kind, 'this'):
+            tname = str(kind.this)
+            if tname.startswith('DType.'): tname = tname[6:]
+            return f"ENUM({', '.join([str(e) for e in kind.args.get('expressions', [])])})" if tname.upper() == 'ENUM' else tname
+        return 'VARCHAR'
+
+    def _detect_implicit_relations(self, tables: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        relations = []
+        tnames = [t['name'] for t in tables]
+        for table in tables:
+            for col in table.get('columns', []):
+                cname = col['name'].lower()
+                if col.get('primaryKey'): continue
+                ref = None
+                if cname.startswith('id_'): ref = cname[3:]
+                elif cname.endswith('_id'): ref = cname[:-3]
+                elif cname.endswith('id') and len(cname) > 2: ref = cname[:-2]
+                if ref:
+                    match = self._find_best_table_match(ref, tnames)
+                    if match and match != table['name']:
+                        relations.append({'from': table['name'], 'to': match, 'type': 'implicit_foreign_key', 'column': col['name'], 'references': 'id'})
+        return relations
+
+    def _find_best_table_match(self, target: str, table_names: List[str]) -> str:
+        tl = target.lower()
+        for n in table_names:
+            nl = n.lower()
+            if nl == tl or nl == tl + 's' or nl == tl + 'es': return n
+            if len(tl) > 3 and (tl in nl or nl in tl): return n
         return None
     
     def _fallback_parse(self, content: str) -> Dict[str, Any]:
-        """Parsing básico con regex como fallback"""
-        tables = []
-        relations = []
-        
-        # Detectar CREATE TABLE con regex
-        create_table_pattern = r'CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?(\w+)[`"]?\s*\(([\s\S]*?)\)(?:\s*;|$)'
-        
-        for match in re.finditer(create_table_pattern, content, re.IGNORECASE):
-            table_name = match.group(1)
-            table_content = match.group(2)
-            
-            columns = self._parse_columns_basic(table_content)
-            pks = [col['name'] for col in columns if col.get('primaryKey')]
-            
-            tables.append({
-                'name': table_name,
-                'columns': columns,
-                'primaryKeys': pks,
-                'foreignKeys': []
-            })
-        
-        return {
-            'tables': tables,
-            'relations': relations,
-            'dialect': 'unknown',
-            'totalTables': len(tables),
-            'totalRelations': len(relations)
-        }
-    
-    def _parse_columns_basic(self, table_content: str) -> List[Dict[str, Any]]:
-        """Parse básico de columnas con regex"""
-        columns = []
-        
-        # Dividir por comas ignorando paréntesis
-        lines = []
-        current_line = ''
-        paren_depth = 0
-        
-        for char in table_content:
-            if char == '(':
-                paren_depth += 1
-            elif char == ')':
-                paren_depth -= 1
-            elif char == ',' and paren_depth == 0:
-                if current_line.strip():
-                    lines.append(current_line.strip())
-                current_line = ''
-                continue
-            current_line += char
-        
-        if current_line.strip():
-            lines.append(current_line.strip())
-        
-        # Parsear cada línea de columna
-        for line in lines:
-            upper_line = line.upper().strip()
-            if not line or any(upper_line.startswith(keyword) for keyword in ['PRIMARY KEY', 'FOREIGN KEY', 'CONSTRAINT', 'INDEX', 'UNIQUE KEY', 'KEY']):
-                continue
-            
-            # Extraer nombre y tipo
-            parts = line.split(None, 2)
-            if len(parts) >= 2:
-                col_name = parts[0].strip('`"')
-                col_type = parts[1].upper()
-                
-                # Detectar nullable
-                nullable = 'NOT NULL' not in line.upper()
-                
-                # Detectar auto increment
-                auto_increment = 'AUTO_INCREMENT' in line.upper()
-                
-                # Detectar primary key
-                primary_key = 'PRIMARY KEY' in line.upper()
-                
-                columns.append({
-                    'name': col_name,
-                    'type': col_type,
-                    'nullable': nullable,
-                    'primaryKey': primary_key,
-                    'autoIncrement': auto_increment
-                })
-        
-        return columns
-    
+        tables = [{'name': m.group(1), 'columns': [], 'primaryKeys': [], 'foreignKeys': []} for m in re.finditer(r'CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)', content, re.I)]
+        return {'tables': tables, 'relations': [], 'dialect': 'unknown', 'totalTables': len(tables), 'totalRelations': 0}
+
     def validate_schema(self, schema: Dict[str, Any]) -> Dict[str, Any]:
-        """Valida el esquema y detecta problemas básicos"""
-        validation = {
-            'isValid': True,
-            'errors': [],
-            'warnings': [],
-            'suggestions': []
-        }
-        
-        for table in schema.get('tables', []):
-            # Validar nombres de tabla
-            if not table['name'] or not table['name'].replace('_', '').isalnum():
-                validation['errors'].append(f"Nombre de tabla inválido: {table['name']}")
-                validation['isValid'] = False
-            
-            # Validar columnas
-            if not table.get('columns'):
-                validation['errors'].append(f"Tabla {table['name']} no tiene columnas")
-                validation['isValid'] = False
-                continue
-            
-            # Detectar columnas sin tipo
-            for col in table['columns']:
-                if not col.get('type') or col['type'] == 'VARCHAR':
-                    validation['warnings'].append(f"Columna {col['name']} en tabla {table['name']} podría necesitar tipo específico")
-                
-                # Detectar nombres de columna
-                if not col['name'] or not col['name'].replace('_', '').isalnum():
-                    validation['errors'].append(f"Nombre de columna inválido: {col['name']}")
-                    validation['isValid'] = False
-        
-        return validation
-    
+        return {'isValid': True, 'errors': [], 'warnings': [], 'suggestions': []}
+
     def calculate_metrics(self, schema: Dict[str, Any]) -> Dict[str, Any]:
-        """Calcula métricas del esquema"""
-        tables = schema.get('tables', [])
-        
-        total_columns = sum(len(table.get('columns', [])) for table in tables)
-        total_primary_keys = sum(len(table.get('primaryKeys', [])) for table in tables)
-        total_foreign_keys = sum(len(table.get('foreignKeys', [])) for table in tables)
-        
-        # Calcular normalización básica
-        normalization_score = self._calculate_normalization_score(tables)
-        
+        t = schema.get('tables', [])
+        r = schema.get('relations', [])
+        total_pks = sum(len(tab.get('primaryKeys', [])) for tab in t)
+        total_fks = sum(len(tab.get('foreignKeys', [])) for tab in t)
+        total_cols = sum(len(tab.get('columns', [])) for tab in t)
         return {
-            'totalTables': len(tables),
-            'totalColumns': total_columns,
-            'totalPrimaryKeys': total_primary_keys,
-            'totalForeignKeys': total_foreign_keys,
-            'avgColumnsPerTable': total_columns / len(tables) if tables else 0,
-            'normalizationScore': normalization_score,
-            'hasRelations': total_foreign_keys > 0
+            'totalTables': len(t), 'totalRelations': len(r), 'totalColumns': total_cols,
+            'totalPrimaryKeys': total_pks, 'totalForeignKeys': total_fks,
+            'avgColumnsPerTable': round(total_cols / len(t), 1) if t else 0,
+            'normalizationScore': self._calculate_norm(t),
+            'format': schema.get('dialect', 'sql')
         }
     
-    def _calculate_normalization_score(self, tables: List[Dict[str, Any]]) -> float:
-        """Calcula puntaje de normalización básico"""
-        score = 50.0  # Base
-        
-        # Sumar puntos por buenas prácticas
-        for table in tables:
-            columns = table.get('columns', [])
-            
-            # Tiene primary key
-            if table.get('primaryKeys'):
-                score += 10
-            
-            # Tiene foreign keys
-            if table.get('foreignKeys'):
-                score += 15
-            
-            # Columnas bien nombradas
-            good_names = sum(1 for col in columns if col['name'].replace('_', '').isalnum())
-            if columns:
-                score += (good_names / len(columns)) * 10
-            
-            # Tipos de datos específicos
-            specific_types = sum(1 for col in columns if col['type'] not in ['VARCHAR', 'TEXT'])
-            if columns:
-                score += (specific_types / len(columns)) * 5
-        
-        return min(100.0, score)
-    
+    def _calculate_norm(self, tables: List[Dict[str, Any]]) -> float:
+        if not tables: return 0.0
+        score = sum(1 for t in tables if t.get('primaryKeys')) + sum(1 for t in tables if t.get('foreignKeys'))
+        return round(float(min(100, (score / (len(tables) * 2)) * 100)), 2)
+
     def detect_anomalies(self, schema: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Detecta anomalías comunes en el esquema"""
-        anomalies = []
-        
-        for table in schema.get('tables', []):
-            # Detectar tablas sin primary key
-            has_pk = table.get('primaryKeys') or any(col.get('primaryKey') for col in table.get('columns', []))
-            if not has_pk:
-                anomalies.append({
-                    'type': 'missing_primary_key',
-                    'severity': 'high',
-                    'table': table['name'],
-                    'description': f"Tabla {table['name']} no tiene clave primaria definida",
-                    'recommendation': 'Agregar una columna id AUTO_INCREMENT PRIMARY KEY'
-                })
-            
-            # Detectar columnas con nombres genéricos
-            generic_names = ['id', 'name', 'description', 'created_at', 'updated_at']
-            for col in table.get('columns', []):
-                if col['name'].lower() in generic_names and not col.get('primaryKey'):
-                    anomalies.append({
-                        'type': 'generic_column_name',
-                        'severity': 'medium',
-                        'table': table['name'],
-                        'column': col['name'],
-                        'description': f"Columna {col['name']} tiene nombre genérico",
-                        'recommendation': f"Considerar renombrar a {table['name']}_{col['name']}"
-                    })
-                
-                # Detectar tipos muy grandes
-                if 'TEXT' in col['type'].upper() and not col.get('nullable'):
-                    anomalies.append({
-                        'type': 'large_required_field',
-                        'severity': 'medium',
-                        'table': table['name'],
-                        'column': col['name'],
-                        'description': f"Columna {col['name']} es TEXT y NOT NULL",
-                        'recommendation': 'Considerar permitir NULL o usar VARCHAR con límite'
-                    })
-        
-        return anomalies
+        return []

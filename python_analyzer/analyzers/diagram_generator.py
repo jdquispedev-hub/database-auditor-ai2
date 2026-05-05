@@ -47,9 +47,13 @@ class DiagramGenerator:
             # Agregar relaciones
             relations = schema.get('relations', [])
             for relation in relations:
-                if 'source' in relation and 'target' in relation:
-                    G.add_edge(relation['source'], 
-                             relation['target'],
+                # Soportar tanto 'from'/'to' como 'source'/'target'
+                src = relation.get('from') or relation.get('source')
+                tgt = relation.get('to') or relation.get('target')
+                
+                if src and tgt:
+                    G.add_edge(src, 
+                             tgt,
                              type='relation',
                              **relation)
             

@@ -554,6 +554,7 @@ app.post('/analyze-python', upload.single('file'), async (req, res) => {
                         schema: result.analysis.schema,
                         documentation: generatePythonDocumentation(result.analysis),
                         conversions: result.analysis.conversions,
+                        diagram: result.analysis.diagram,
                         analysisType: 'python',
                         fileName: req.file.originalname
                     };

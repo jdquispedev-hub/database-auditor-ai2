@@ -41,6 +41,9 @@ class SchemaConverter:
         conversions['csv'] = self._convert_to_csv(tables)
         conversions['yaml'] = self._convert_to_yaml(tables)
         
+        # Generar formato para visualización (JSON Crack / JSONC)
+        conversions['json_crack'] = self._convert_to_json_crack(tables)
+        
         return {
             'success': True,
             'formats': conversions,
@@ -370,6 +373,41 @@ class SchemaConverter:
             yaml_data['tables'][table_name] = table_def
         
         return yaml.dump(yaml_data, default_flow_style=False, sort_keys=False)
+
+    def _convert_to_json_crack(self, tables: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Convierte a un formato optimizado para JSON Crack (JSON con estructura clara)
+        A menudo los usuarios lo llaman JSONC por su legibilidad.
+        """
+        crack_data = {}
+        
+        for table in tables:
+            table_name = table['name']
+            columns = table.get('columns', [])
+            
+            # Formatear columnas como un objeto para que JSON Crack las muestre mejor
+            cols_def = {}
+            for col in columns:
+                props = [col['type']]
+                if col.get('primaryKey'): props.append('PK')
+                if not col.get('nullable'): props.append('NOT NULL')
+                if col.get('autoIncrement'): props.append('AUTO')
+                
+                cols_def[col['name']] = " | ".join(props)
+            
+            crack_data[table_name] = {
+                "FIELDS": cols_def,
+                "METADATA": {
+                    "primary_keys": table.get('primaryKeys', []),
+                    "foreign_keys": [
+                        f"{fk['column']} -> {fk['references']['table']}({fk['references']['column']})"
+                        for fk in table.get('foreignKeys', [])
+                        if isinstance(fk, dict) and 'references' in fk
+                    ]
+                }
+            }
+            
+        return crack_data
     
     # Mapeos de tipos
     def _map_type_to_mysql(self, type_str: str) -> str:

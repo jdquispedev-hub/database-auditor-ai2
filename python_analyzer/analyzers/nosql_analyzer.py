@@ -78,6 +78,12 @@ class NoSQLAnalyzer:
         relations = []
         
         if isinstance(data, dict):
+            # Detectar si es un JSON Schema
+            is_json_schema = any(key in data for key in ['$schema', 'definitions', '$defs', 'properties'])
+            # Verificar si las propiedades parecen definiciones de esquemas
+            if is_json_schema:
+                return self._extract_from_json_schema(data, format_type)
+
             # Caso 1: Objeto con tablas/collections
             if 'tables' in data or 'collections' in data:
                 items = data.get('tables', data.get('collections', {}))
@@ -108,14 +114,98 @@ class NoSQLAnalyzer:
                 if table:
                     tables.append(table)
         
-        # Extraer relaciones si existen
+        # Extraer relaciones si existen explícitamente
         if isinstance(data, dict) and 'relations' in data:
-            relations = data['relations']
+            explicit_relations = data['relations']
+            if isinstance(explicit_relations, list):
+                relations.extend(explicit_relations)
+        
+        # Consolidar y validar relaciones (Fuzzy Matching)
+        valid_table_names = [t['name'] for t in tables]
+        for table in tables:
+            for fk in table.get('foreignKeys', []):
+                inferred_target = fk['references']['table']
+                
+                # Intentar encontrar la tabla real más cercana
+                actual_target = self._find_best_table_match(inferred_target, valid_table_names)
+                if actual_target:
+                    fk['references']['table'] = actual_target
+                    relations.append({
+                        'from': table['name'],
+                        'to': actual_target,
+                        'type': 'foreign_key',
+                        'column': fk['column']
+                    })
         
         return {
             'tables': tables,
             'relations': relations,
             'format': format_type,
+            'totalTables': len(tables),
+            'totalRelations': len(relations)
+        }
+
+    def _find_best_table_match(self, target: str, table_names: List[str]) -> str:
+        """Encuentra la mejor coincidencia para un nombre de tabla (fuzzy)"""
+        target_lower = target.lower()
+        
+        # Coincidencia exacta
+        for name in table_names:
+            if name.lower() == target_lower:
+                return name
+        
+        # Coincidencia parcial (ej: 'principio' en 'PrincipiosActivos')
+        for name in table_names:
+            name_lower = name.lower()
+            if target_lower in name_lower or name_lower in target_lower:
+                return name
+        
+        return None
+
+    def _extract_from_json_schema(self, data: Dict[str, Any], format_type: str) -> Dict[str, Any]:
+        """Extrae tablas y relaciones desde un JSON Schema"""
+        tables = []
+        relations = []
+        
+        # Buscar definiciones de tablas en properties o definitions
+        sources = {
+            'properties': data.get('properties', {}),
+            'definitions': data.get('definitions', {}),
+            '$defs': data.get('$defs', {})
+        }
+        
+        for source_name, source_data in sources.items():
+            if not isinstance(source_data, dict):
+                continue
+                
+            for name, schema in source_data.items():
+                if isinstance(schema, dict):
+                    # Si tiene propiedades o es tipo objeto, es una tabla
+                    if schema.get('type') == 'object' or 'properties' in schema:
+                        table = self._extract_table_from_object(schema, name)
+                        if table:
+                            tables.append(table)
+        
+        # Consolidar y validar relaciones (Fuzzy Matching)
+        valid_table_names = [t['name'] for t in tables]
+        for table in tables:
+            for fk in table.get('foreignKeys', []):
+                inferred_target = fk['references']['table']
+                actual_target = self._find_best_table_match(inferred_target, valid_table_names)
+                
+                if actual_target:
+                    fk['references']['table'] = actual_target
+                    relations.append({
+                        'from': table['name'],
+                        'to': actual_target,
+                        'type': 'foreign_key',
+                        'column': fk['column']
+                    })
+        
+        return {
+            'tables': tables,
+            'relations': relations,
+            'format': f"{format_type}_schema",
             'totalTables': len(tables),
             'totalRelations': len(relations)
         }
@@ -125,74 +215,134 @@ class NoSQLAnalyzer:
         if not isinstance(obj, dict):
             return None
         
-        # Si el objeto tiene 'name' y 'columns', es una definición de tabla
-        if 'columns' in obj or 'fields' in obj:
-            name = table_name or obj.get('name', 'unknown')
-            columns = obj.get('columns', obj.get('fields', []))
+        # Si el objeto tiene 'properties' (JSON Schema style)
+        if 'properties' in obj:
+            name = table_name or obj.get('title', 'unknown')
+            columns = self._normalize_columns(obj['properties'])
+            
+            # Intentar extraer PKs desde 'required' o buscando campos id
+            primary_keys = []
+            for col in columns:
+                if col['name'].lower() in ['id', '_id', f'id_{name.lower()}', f'{name.lower()}_id']:
+                    col['primaryKey'] = True
+                    primary_keys.append(col['name'])
+            
+            # Detectar FKs en columnas
+            foreign_keys = self._detect_foreign_keys(columns)
             
             return {
                 'name': name,
-                'columns': self._normalize_columns(columns),
+                'columns': columns,
+                'primaryKeys': primary_keys,
+                'foreignKeys': foreign_keys
+            }
+        
+        # Si el objeto tiene 'columns' o 'fields' explícitos
+        elif 'columns' in obj or 'fields' in obj:
+            name = table_name or obj.get('name', 'unknown')
+            columns = self._normalize_columns(obj.get('columns', obj.get('fields', [])))
+            
+            return {
+                'name': name,
+                'columns': columns,
                 'primaryKeys': obj.get('primaryKeys', []),
                 'foreignKeys': obj.get('foreignKeys', [])
             }
         
-        # Si no, inferir estructura desde las propiedades del objeto
+        # Si no, inferir estructura desde las propiedades del objeto (data simple)
         else:
             name = table_name or 'inferred_table'
             columns = []
             
             for key, value in obj.items():
                 col_type = self._infer_type_from_value(value)
+                is_pk = key.lower() in ['id', '_id']
+                
                 columns.append({
                     'name': key,
                     'type': col_type,
-                    'nullable': True,  # Asumir nullable en NoSQL
-                    'primaryKey': key.lower() == 'id',
+                    'nullable': True,
+                    'primaryKey': is_pk,
                     'autoIncrement': False
                 })
+            
+            foreign_keys = self._detect_foreign_keys(columns)
             
             return {
                 'name': name,
                 'columns': columns,
-                'primaryKeys': ['id'] if any(col['name'] == 'id' for col in columns) else [],
-                'foreignKeys': []
+                'primaryKeys': [col['name'] for col in columns if col['primaryKey']],
+                'foreignKeys': foreign_keys
             }
+
+    def _detect_foreign_keys(self, columns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Detecta llaves foráneas implícitas en una lista de columnas"""
+        foreign_keys = []
+        for col in columns:
+            key = col['name']
+            is_pk = col.get('primaryKey', False)
+            
+            is_fk = False
+            ref_table = None
+            
+            if not is_pk:
+                # Caso 1: termina en _id o id (ej: user_id, userId)
+                if key.lower().endswith('_id') or (key.lower().endswith('id') and len(key) > 2):
+                    ref_table = key.lower().replace('_id', '').replace('id', '')
+                    is_fk = True
+                # Caso 2: empieza por id_ (ej: id_user)
+                elif key.lower().startswith('id_'):
+                    ref_table = key.lower().replace('id_', '')
+                    is_fk = True
+            
+            if is_fk and ref_table:
+                # Pluralización básica para inferencia
+                if ref_table[-1] in 'aeiou': ref_table_plural = ref_table + 's'
+                else: ref_table_plural = ref_table + 'es'
+                
+                foreign_keys.append({
+                    'column': key,
+                    'references': {
+                        'table': ref_table_plural, # Será refinado con fuzzy match después
+                        'column': 'id'
+                    }
+                })
+        return foreign_keys
     
     def _extract_table_from_array(self, arr: List[Any], table_name: str) -> Dict[str, Any]:
         """Extrae tabla desde array de documentos"""
         if not arr:
             return None
         
-        # Recolectar todas las claves posibles
         all_keys = set()
         for item in arr:
             if isinstance(item, dict):
                 all_keys.update(item.keys())
         
-        # Crear columnas basadas en tipos detectados
         columns = []
         for key in all_keys:
-            # Encontrar el primer valor no nulo para inferir tipo
             inferred_type = 'STRING'
             for item in arr:
                 if isinstance(item, dict) and key in item and item[key] is not None:
                     inferred_type = self._infer_type_from_value(item[key])
                     break
             
+            is_pk = key.lower() in ['id', '_id']
             columns.append({
                 'name': key,
                 'type': inferred_type,
-                'nullable': True,  # En NoSQL usualmente nullable
-                'primaryKey': key.lower() == 'id',
+                'nullable': True,
+                'primaryKey': is_pk,
                 'autoIncrement': False
             })
+        
+        foreign_keys = self._detect_foreign_keys(columns)
         
         return {
             'name': table_name,
             'columns': columns,
-            'primaryKeys': ['id'] if any(col['name'] == 'id' for col in columns) else [],
-            'foreignKeys': []
+            'primaryKeys': [col['name'] for col in columns if col['primaryKey']],
+            'foreignKeys': foreign_keys
         }
     
     def _normalize_columns(self, columns: Any) -> List[Dict[str, Any]]:
@@ -200,24 +350,31 @@ class NoSQLAnalyzer:
         if isinstance(columns, list):
             return columns
         elif isinstance(columns, dict):
-            # Convertir diccionario a lista de columnas
             result = []
             for name, col_info in columns.items():
                 if isinstance(col_info, dict):
-                    col_info['name'] = name
-                    result.append(col_info)
+                    # JSON Schema style: "name": {"type": "string", ...}
+                    col_type = col_info.get('type', 'STRING')
+                    if isinstance(col_type, list): col_type = col_type[0]
+                    
+                    result.append({
+                        'name': name,
+                        'type': str(col_type).upper(),
+                        'nullable': True,
+                        'primaryKey': False,
+                        'autoIncrement': False
+                    })
                 else:
                     # Simple type string
                     result.append({
                         'name': name,
-                        'type': str(col_info),
+                        'type': str(col_info).upper(),
                         'nullable': True,
                         'primaryKey': False,
                         'autoIncrement': False
                     })
             return result
-        else:
-            return []
+        return []
     
     def _infer_type_from_value(self, value: Any) -> str:
         """Infiere tipo SQL desde valor Python"""
@@ -230,7 +387,6 @@ class NoSQLAnalyzer:
         elif isinstance(value, float):
             return 'FLOAT'
         elif isinstance(value, str):
-            # Intentar detectar patrones especiales
             if value.lower() in ('true', 'false'):
                 return 'BOOLEAN'
             elif value.isdigit():
@@ -245,11 +401,9 @@ class NoSQLAnalyzer:
             return 'ARRAY'
         elif isinstance(value, dict):
             return 'JSON'
-        else:
-            return 'VARCHAR(255)'
+        return 'VARCHAR(255)'
     
     def _is_float(self, value: str) -> bool:
-        """Verifica si string representa un float"""
         try:
             float(value)
             return '.' in value
@@ -257,159 +411,78 @@ class NoSQLAnalyzer:
             return False
     
     def _pandas_type_to_sql_type(self, dtype: str) -> str:
-        """Convierte tipo pandas a tipo SQL"""
         dtype = dtype.lower()
-        
-        if 'int' in dtype:
-            return 'INTEGER'
-        elif 'float' in dtype:
-            return 'FLOAT'
-        elif 'bool' in dtype:
-            return 'BOOLEAN'
-        elif 'datetime' in dtype:
-            return 'DATETIME'
-        elif 'object' in dtype:
-            return 'VARCHAR(255)'
-        else:
-            return 'VARCHAR(255)'
+        if 'int' in dtype: return 'INTEGER'
+        elif 'float' in dtype: return 'FLOAT'
+        elif 'bool' in dtype: return 'BOOLEAN'
+        elif 'datetime' in dtype: return 'DATETIME'
+        return 'VARCHAR(255)'
     
     def validate_schema(self, schema: Dict[str, Any]) -> Dict[str, Any]:
-        """Valida esquema NoSQL"""
-        validation = {
-            'isValid': True,
-            'errors': [],
-            'warnings': [],
-            'suggestions': []
-        }
-        
+        validation = {'isValid': True, 'errors': [], 'warnings': [], 'suggestions': []}
         tables = schema.get('tables', [])
-        
         if not tables:
-            validation['errors'].append("No se encontraron tablas en el documento")
+            validation['errors'].append("No se encontraron tablas")
             validation['isValid'] = False
             return validation
-        
         for table in tables:
-            # Validar nombre de tabla
             if not table.get('name'):
                 validation['errors'].append("Tabla sin nombre encontrada")
                 validation['isValid'] = False
                 continue
-            
-            # Validar columnas
             columns = table.get('columns', [])
             if not columns:
-                validation['warnings'].append(f"Tabla {table['name']} no tiene columnas definidas")
+                validation['warnings'].append(f"Tabla {table['name']} sin columnas")
                 continue
-            
-            # Validar cada columna
             for col in columns:
-                if not col.get('name'):
-                    validation['errors'].append(f"Columna sin nombre en tabla {table['name']}")
-                    validation['isValid'] = False
-                
-                # Detectar tipos genéricos
-                if col.get('type') in ['STRING', 'OBJECT']:
-                    validation['suggestions'].append(
-                        f"Considerar especificar tipo más preciso para columna {col['name']} en tabla {table['name']}"
-                    )
-        
+                if col.get('type') in ['STRING', 'OBJECT', 'JSON']:
+                    validation['suggestions'].append(f"Refinar tipo en {table['name']}.{col['name']}")
         return validation
     
     def calculate_metrics(self, schema: Dict[str, Any]) -> Dict[str, Any]:
-        """Calcula métricas del esquema NoSQL"""
         tables = schema.get('tables', [])
+        total_columns = sum(len(t.get('columns', [])) for t in tables)
+        total_pks = sum(len(t.get('primaryKeys', [])) for t in tables)
+        total_fks = sum(len(t.get('foreignKeys', [])) for t in tables)
+        total_rels = len(schema.get('relations', []))
         
-        total_columns = sum(len(table.get('columns', [])) for table in tables)
-        total_primary_keys = sum(len(table.get('primaryKeys', [])) for table in tables)
-        
-        # Calcular tipos de datos
-        type_distribution = {}
-        for table in tables:
-            for col in table.get('columns', []):
-                col_type = col.get('type', 'UNKNOWN')
-                type_distribution[col_type] = type_distribution.get(col_type, 0) + 1
-        
-        # Calcular score de estructura
-        structure_score = self._calculate_structure_score(tables)
+        type_dist = {}
+        for t in tables:
+            for c in t.get('columns', []):
+                ctype = c.get('type', 'UNKNOWN')
+                type_dist[ctype] = type_dist.get(ctype, 0) + 1
         
         return {
             'totalTables': len(tables),
             'totalColumns': total_columns,
-            'totalPrimaryKeys': total_primary_keys,
+            'totalPrimaryKeys': total_pks,
+            'totalForeignKeys': total_fks,
+            'totalRelations': total_rels,
             'avgColumnsPerTable': total_columns / len(tables) if tables else 0,
-            'typeDistribution': type_distribution,
-            'structureScore': structure_score,
+            'typeDistribution': type_dist,
+            'structureScore': self._calculate_structure_score(tables),
             'format': schema.get('format', 'unknown')
         }
     
     def _calculate_structure_score(self, tables: List[Dict[str, Any]]) -> float:
-        """Calcula puntaje de estructura NoSQL"""
-        if not tables:
-            return 0.0
-        
-        score = 50.0  # Base
-        
+        if not tables: return 0.0
+        score = 50.0
         for table in tables:
-            columns = table.get('columns', [])
-            
-            # Tiene columnas bien definidas
-            if columns:
-                score += 10
-            
-            # Tiene primary key
-            if table.get('primaryKeys'):
-                score += 15
-            
-            # Nombres descriptivos
-            good_names = sum(1 for col in columns if len(col.get('name', '')) > 2)
-            if columns:
-                score += (good_names / len(columns)) * 10
-            
-            # Tipos específicos
-            specific_types = sum(1 for col in columns if col.get('type') not in ['STRING', 'OBJECT'])
-            if columns:
-                score += (specific_types / len(columns)) * 15
-        
+            cols = table.get('columns', [])
+            if cols: score += 10
+            if table.get('primaryKeys'): score += 15
+            if table.get('foreignKeys'): score += 10
         return min(100.0, score)
-    
+
     def detect_anomalies(self, schema: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Detecta anomalías en esquema NoSQL"""
         anomalies = []
-        
         for table in schema.get('tables', []):
-            # Detectar tablas sin ID
             if not table.get('primaryKeys'):
                 anomalies.append({
-                    'type': 'missing_identifier',
+                    'type': 'missing_pk',
                     'severity': 'medium',
                     'table': table['name'],
-                    'description': f"Tabla {table['name']} no tiene identificador único",
-                    'recommendation': 'Agregar campo _id o id como identificador único'
+                    'description': f"Tabla {table['name']} sin PK",
+                    'recommendation': 'Definir un identificador único'
                 })
-            
-            # Detectar columnas con tipos genéricos
-            for col in table.get('columns', []):
-                col_type = col.get('type', '').upper()
-                if col_type in ['STRING', 'OBJECT']:
-                    anomalies.append({
-                        'type': 'generic_type',
-                        'severity': 'low',
-                        'table': table['name'],
-                        'column': col['name'],
-                        'description': f"Columna {col['name']} tiene tipo genérico {col_type}",
-                        'recommendation': 'Especificar tipo más preciso (VARCHAR, INTEGER, etc.)'
-                    })
-                
-                # Detectar nombres muy cortos
-                if len(col.get('name', '')) < 2:
-                    anomalies.append({
-                        'type': 'short_column_name',
-                        'severity': 'low',
-                        'table': table['name'],
-                        'column': col['name'],
-                        'description': f"Columna {col['name']} tiene nombre muy corto",
-                        'recommendation': 'Usar nombres más descriptivos'
-                    })
-        
         return anomalies

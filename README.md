@@ -1,67 +1,58 @@
-# 🚀 AI Database Auditor & Documentation System
+# 🚀 AI Database Auditor & Documentation System (Hybrid Edition)
 
-Un sistema avanzado y profesional para la auditoría, documentación y conversión de estructuras de bases de datos utilizando Inteligencia Artificial (**OpenAI GPT-4o-mini**). Este proyecto está diseñado para arquitectos de datos, contadores y desarrolladores que necesitan una visión crítica y detallada de sus esquemas de datos.
+Un sistema avanzado y profesional para la auditoría, documentación y conversión de estructuras de bases de datos. Combina la potencia de la **Inteligencia Artificial (OpenAI GPT-4o-mini)** con un robusto **Motor de Análisis Local basado en Python** para ofrecer precisión técnica y visión crítica.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Node.js](https://img.shields.io/badge/node-%3E%3D16.0.0-green.svg)
+![Python](https://img.shields.io/badge/python-%3E%3D3.9-blue.svg)
 ![OpenAI](https://img.shields.io/badge/AI-OpenAI%20GPT--4o--mini-orange.svg)
 
 ---
 
 ## ✨ Características Principales
 
-### 1. 🔍 Auditoría Técnica & Contable
-Actúa como un **Auditor Senior**. El sistema no solo documenta, sino que crítica.
-- **Barra de Cumplimiento Animada**: Un medidor visual `[████████░░]` que indica el nivel de normalización e integridad.
-- **Crítica Obligatoria**: Análisis honesto sobre tipos de datos, llaves foráneas y estándares contables internacionales.
-- **Diccionario de Datos Premium**: Tablas limpias y estructuradas generadas por IA.
+### 1. 🔍 Análisis Híbrido (IA + Python)
+- **Análisis con IA**: Genera documentación descriptiva, críticas contables y sugerencias estratégicas.
+- **Análisis con Python**: Motor local ultra-rápido para detección precisa de tipos de datos, llaves primarias, foráneas (incluso implícitas) y métricas de normalización.
 
-### 2. 📊 Diagramas ER Interactivos (Mermaid.js)
+### 2. 📊 Diagramas ER Interactivos (Mermaid.js & NetworkX)
 Visualiza tu base de datos al instante.
-- **Generación Automática**: Crea diagramas Entidad-Relación basados en el archivo subido.
-- **Controles de Zoom**: Navega fácilmente por esquemas complejos.
-- **Descarga SVG**: Guarda tus diagramas para reportes técnicos.
+- **Detección de Relaciones**: Identifica claves foráneas explícitas e infiere relaciones por nombres de columnas (Fuzzy Matching).
+- **Controles de Zoom & SVG**: Navega por esquemas complejos y descarga los diagramas para tus reportes.
 
-### 3. 🔄 Convertidor de Esquemas Multi-formato
-Transforma tu estructura de datos a cualquier tecnología moderna.
-- **Formatos de Destino**: SQL (MySQL/PostgreSQL), MongoDB (Mongoose), Prisma Schema, GraphQL SDL, JSON Schema.
-- **Lógica de Conversión**: Mantiene relaciones, tipos de datos y añade comentarios de diseño.
-
-### 4. 📂 Soporte Masivo de Formatos
-Acepta prácticamente cualquier archivo relacionado con datos:
-- **Relacionales**: `.sql`, `.dbml`, `.txt`
-- **No Relacionales**: `.json`, `.yaml`, `.yml`
-- **Modernos**: `.prisma`, `.graphql`
-- **Código**: `.js`, `.ts` (Modelos)
-- **Tabulares**: `.csv`, `.xlsx` (Excel)
+### 3. 🔄 Convertidor de Esquemas Profesional
+Transforma tu estructura de datos a cualquier tecnología moderna:
+- **Formatos**: MySQL, PostgreSQL, SQLite, MongoDB (Mongoose), Prisma, GraphQL, JSON Schema, CSV, YAML.
 
 ---
 
-## 🛠️ Tecnologías Utilizadas
+## 🛠️ Requisitos del Sistema
 
-- **Backend**: Node.js & Express.
-- **IA**: OpenAI API (GPT-4o-mini).
-- **Diagramación**: Mermaid.js.
-- **Procesamiento de Excel**: Library `xlsx`.
-- **Frontend**: Vanilla JavaScript, CSS Moderno (Glassmorphism), Marked.js.
+### Core
+- **Node.js** v16.0 o superior.
+- **OpenAI API Key** (opcional, requerida solo para la pestaña de Análisis IA).
+
+### Motor Python (Requerido para Análisis Local)
+- **Python** 3.9 o superior.
+- **Dependencias**:
+  ```bash
+  pip install sqlglot pandas matplotlib networkx pyyaml jsonschema
+  ```
 
 ---
 
 ## 🚀 Instalación y Configuración
 
-### 1. Requisitos Previos
-- Node.js v16 o superior.
-- Una cuenta de [OpenAI](https://platform.openai.com/) y una API Key válida.
-
-### 2. Instalar
+### 1. Clonar e Instalar Node
 ```bash
-cd Doc
 npm install
 ```
 
-### 3. Variables de Entorno
-Crea un archivo `.env` en la raíz del proyecto basándote en `.env.example`:
+### 2. Configurar Python
+Asegúrate de tener instaladas las dependencias mencionadas arriba.
 
+### 3. Variables de Entorno
+Crea un archivo `.env` en la raíz del proyecto:
 ```env
 OPENAI_API_KEY=tu_api_key_aqui
 PORT=3000
@@ -69,11 +60,7 @@ PORT=3000
 
 ### 4. Iniciar el Sistema
 ```bash
-# Modo producción
 npm start
-
-# Modo desarrollo (si tienes nodemon)
-npm run dev
 ```
 Visita `http://localhost:3000` en tu navegador.
 
@@ -81,22 +68,22 @@ Visita `http://localhost:3000` en tu navegador.
 
 ## 📖 Cómo Usar el Sistema
 
-1. **Sube tu archivo**: Arrastra o selecciona tu archivo de base de datos (ej: `schema.sql`, `data.json`, `Reporte.xlsx`).
-2. **Auditoría**: Revisa la pestaña "Documentación IA" para ver el análisis crítico y la barra de cumplimiento.
-3. **Visualiza**: Ve a "Diagrama ER" para ver la estructura gráfica. Usa el zoom si el esquema es grande.
-4. **Convierte**: Si necesitas moverte a otra tecnología, usa la pestaña "Convertidor", elige el formato y obtén tu código.
-5. **Descarga/Imprime**: Al final de los resultados, encontrarás botones para descargar la documentación en formato Word (.doc), PDF (.pdf) o imprimirla directamente.
+1. **Subida**: Arrastra tu archivo (`.sql`, `.json`, `.xlsx`, etc.).
+2. **Análisis Local (Python)**: Úsalo para obtener métricas técnicas exactas, detectar relaciones implícitas y generar el diagrama ER sin coste de API.
+3. **Análisis IA (OpenAI)**: Úsalo para obtener una auditoría crítica desde una perspectiva contable y de arquitectura de software.
+4. **Visualización**: Ve a la pestaña "Diagrama ER" para ver las conexiones entre tablas.
+5. **Conversión**: Exporta tu esquema a otros formatos en la pestaña "Convertidor".
+6. **Exportación**: Genera reportes en Word, PDF o imprime directamente desde la interfaz.
 
 ---
 
-## 🛡️ Seguridad y Privacidad
-- Los archivos subidos se procesan temporalmente en la carpeta `uploads/`.
-- Se eliminan automáticamente del servidor inmediatamente después del análisis para garantizar la privacidad de tus datos.
-- El sistema no almacena logs de los esquemas analizados.
-- La aplicación funciona completamente offline una vez instalada (excepto por las llamadas a OpenAI API).
+## 🛡️ Estructura del Proyecto
+- `public/`: Frontend (HTML, CSS, JS Moderno).
+- `python_analyzer/`: Motor de análisis local (Analizadores SQL, NoSQL, Diagramas).
+- `server.js`: Servidor Express y orquestador del sistema.
+- `uploads/`: Carpeta temporal para procesamiento de archivos.
 
 ---
 
 ## 📄 Licencia
-Este proyecto está bajo la Licencia **MIT**. Siéntete libre de usarlo, modificarlo y compartirlo.
-
+Este proyecto está bajo la Licencia **MIT**.

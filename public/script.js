@@ -953,8 +953,10 @@ async function convertSchema() {
             code = formats.prisma || '';
         } else if (fmt === 'graphql') {
             code = formats.graphql || '';
-        } else if (fmt === 'json') {
+        } else if (fmt === 'json' || fmt === 'json_schema') {
             code = formats.json_schema || '';
+        } else if (fmt === 'json_crack') {
+            code = formats.json_crack || '';
         } else if (formats[fmt]) {
             code = formats[fmt];
         }
