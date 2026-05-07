@@ -6,6 +6,7 @@ const os = require('os');
 const cors = require('cors');
 const OpenAI = require('openai');
 const xlsx = require('xlsx');
+const supabase = require('./supabaseClient');
 
 require('dotenv').config();
 

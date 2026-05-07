@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>DataScript AI - Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/public/css/usu_panel.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="dashboard-wrapper">
+    <aside class="sidebar">
+        <div class="logo-sidebar">DataScript AI</div>
+        <a href="usu_generar.html" class="menu-item active">Dashboard</a>
+        <a href="usu_generar.html" class="menu-item">Generar documento</a>
+        <a href="usu_guardados.html" class="menu-item">Documentos guardados</a>
+        <div class="menu-item logout" id="logoutBtn">Cerrar Sesion</div>
+    </aside>
+    <main class="content">
+        <div id="dynamicView">
+            <div class="loading">Cargando dashboard...</div>
+        </div>
+        <footer class="footer"><center>Tiempo de actividad: Año 2026</center></footer>
+    </main>
+</div>
+
+<script src="/public/js/usu_panel.js"></script>
+</body>
+</html>
