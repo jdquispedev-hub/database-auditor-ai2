@@ -593,7 +593,43 @@ app.post('/analyze-python', upload.single('file'), async (req, res) => {
         const filePath = req.file.path;
         const fileExtension = path.extname(req.file.originalname).toLowerCase();
         
-        // Validar que Python esté instalado (dinámico para Windows/Linux)
+        // Compatibilidad con Vercel: Reenviar la petición a la función serverless de Python
+        if (process.env.VERCEL) {
+            const host = req.headers.host;
+            const url = `https://${host}/api/analyze_python`;
+            
+            const fileBuffer = fs.readFileSync(filePath);
+            const formData = new FormData();
+            const blob = new Blob([fileBuffer]);
+            formData.append('file', blob, req.file.originalname);
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            
+            // Eliminar archivo temporal
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+            
+            if (result.success) {
+                return res.json({
+                    success: true,
+                    schema: result.analysis.schema,
+                    documentation: generatePythonDocumentation(result.analysis),
+                    conversions: result.analysis.conversions,
+                    diagram: result.analysis.diagram,
+                    analysisType: 'python',
+                    fileName: req.file.originalname
+                });
+            } else {
+                return res.status(400).json({ error: result.error || 'Error en análisis serverless de Vercel' });
+            }
+        }
+        
+        // Ejecución local o servidores tradicionales (Render, etc)
         const { spawn } = require('child_process');
         const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
         

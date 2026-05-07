@@ -4,3 +4,5 @@ pandas
 jsonschema
 networkx
 matplotlib
+Flask
+requests
