@@ -477,8 +477,19 @@ function analyzeAnomalies(schema) {
             });
         }
 
-        // 3. Posibles claves foráneas implícitas (terminan en _id)
-        const implicitFkCols = table.columns.filter(col => col.name.toLowerCase().endsWith('_id'));
+        // 3. Posibles claves foráneas implícitas (terminan en _id sin restricción formal)
+        const fks = table.foreignKeys || [];
+        const implicitFkCols = table.columns.filter(col => {
+            const colNameLower = col.name.toLowerCase();
+            const isFk = colNameLower.endsWith('_id');
+            if (!isFk) return false;
+            // Verificar si esta columna ya tiene una clave foránea explícita
+            const isExplicit = fks.some(fk => {
+                const fkCol = (fk.column || '').toLowerCase();
+                return fkCol === colNameLower;
+            });
+            return !isExplicit;
+        });
         if (implicitFkCols.length > 0) {
             anomaliesByType.implicitForeignKeys.push({
                 table: table.name,

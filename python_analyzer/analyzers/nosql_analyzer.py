@@ -11,7 +11,7 @@ from typing import Dict, List, Any
 
 class NoSQLAnalyzer:
     def __init__(self):
-        self.supported_formats = ['.json', '.yaml', '.yml', '.xlsx', '.xls']
+        self.supported_formats = ['.json', '.yaml', '.yml', '.xlsx', '.xls', '.csv']
     
     def parse_json(self, content: str) -> Dict[str, Any]:
         """Parsea contenido JSON y extrae esquema"""
@@ -28,6 +28,140 @@ class NoSQLAnalyzer:
             return self._extract_schema_from_data(data, 'yaml')
         except yaml.YAMLError as e:
             raise ValueError(f"YAML inválido: {str(e)}")
+
+    def parse_csv(self, file_path) -> Dict[str, Any]:
+        """Parsea un archivo CSV (soportando formato estándar y formato multi-tabla personalizado)"""
+        try:
+            from pathlib import Path
+            import csv
+            file_path = Path(file_path)
+            
+            tables = []
+            relations = []
+            
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                lines = [line.strip() for line in f.readlines()]
+                
+            # Detectar si es el formato personalizado multi-tabla
+            is_multi_table = any(line.upper().startswith('TABLA,') for line in lines)
+            
+            if is_multi_table:
+                current_table_name = None
+                headers = []
+                rows = []
+                
+                def save_current_table():
+                    if current_table_name and headers:
+                        columns = []
+                        for col in headers:
+                            # Inferir tipo básico analizando los valores cargados en rows
+                            inferred_type = 'VARCHAR(255)'
+                            col_idx = headers.index(col)
+                            for row in rows:
+                                if col_idx < len(row):
+                                    val = row[col_idx]
+                                    if val.lower() in ['true', 'false']:
+                                        inferred_type = 'BOOLEAN'
+                                        break
+                                    try:
+                                        int(val)
+                                        inferred_type = 'INT'
+                                        break
+                                    except ValueError:
+                                        try:
+                                            float(val)
+                                            inferred_type = 'DECIMAL(10,2)'
+                                            break
+                                        except ValueError:
+                                            pass
+                            
+                            columns.append({
+                                'name': col,
+                                'type': inferred_type,
+                                'nullable': True,
+                                'primaryKey': col.lower() in ['id', 'uuid', 'pk', 'codigo'],
+                                'autoIncrement': False
+                            })
+                            
+                        tables.append({
+                            'name': current_table_name,
+                            'columns': columns,
+                            'primaryKeys': [c['name'] for c in columns if c['primaryKey']],
+                            'foreignKeys': []
+                        })
+                
+                i = 0
+                while i < len(lines):
+                    line = lines[i]
+                    if line.upper().startswith('TABLA,'):
+                        # Guardar tabla anterior si existía
+                        save_current_table()
+                        current_table_name = line.split(',', 1)[1].strip()
+                        headers = []
+                        rows = []
+                        # La siguiente línea no vacía contiene los headers
+                        i += 1
+                        while i < len(lines) and not lines[i]:
+                            i += 1
+                        if i < len(lines):
+                            headers = [h.strip() for h in csv.reader([lines[i]]).__next__()]
+                    elif line and current_table_name and headers:
+                        # Es una fila de datos
+                        row_data = [r.strip() for r in csv.reader([line]).__next__()]
+                        rows.append(row_data)
+                    i += 1
+                    
+                # Guardar la última tabla procesada
+                save_current_table()
+            else:
+                # Fallback: CSV plano tradicional
+                df = pd.read_csv(file_path)
+                columns = []
+                for col in df.columns:
+                    dtype = str(df[col].dtype)
+                    sql_type = self._pandas_type_to_sql_type(dtype)
+                    columns.append({
+                        'name': str(col),
+                        'type': sql_type,
+                        'nullable': bool(df[col].isnull().any()),
+                        'primaryKey': str(col).lower() in ['id', 'uuid', 'pk', 'codigo'],
+                        'autoIncrement': False
+                    })
+                table_name = file_path.stem
+                tables = [{
+                    'name': table_name,
+                    'columns': columns,
+                    'primaryKeys': [col['name'] for col in columns if col['primaryKey']],
+                    'foreignKeys': []
+                }]
+                
+            # Encontrar relaciones implícitas
+            from analyzers.sql_analyzer import SQLAnalyzer
+            sql_analyzer = SQLAnalyzer()
+            implicit_relations = sql_analyzer._detect_implicit_relations(tables)
+            relations.extend(implicit_relations)
+            
+            seen_rels = set()
+            unique_relations = []
+            for rel in relations:
+                source, target, col = str(rel['from']), str(rel['to']), str(rel.get('column', ''))
+                rel_id = f"{source.lower()}->{target.lower()} ({col.lower()})"
+                if rel_id not in seen_rels and source.lower() != target.lower():
+                    unique_relations.append({
+                        'from': source, 'to': target, 'type': rel.get('type', 'foreign_key'),
+                        'column': col, 'references': str(rel.get('references', 'id'))
+                    })
+                    seen_rels.add(rel_id)
+            
+            return {
+                'tables': tables,
+                'relations': unique_relations,
+                'format': 'csv',
+                'totalTables': len(tables),
+                'totalRelations': len(unique_relations)
+            }
+        except Exception as e:
+            raise ValueError(f"Error al leer CSV: {str(e)}")
     
     def parse_excel(self, file_path) -> Dict[str, Any]:
         """Parsea archivo Excel y extrae esquema"""
@@ -78,12 +212,20 @@ class NoSQLAnalyzer:
         relations = []
         
         if isinstance(data, dict):
+            # Si el diccionario tiene una única clave y su valor es otro diccionario,
+            # lo desempaquetamos para procesar las tablas internas correctamente (ej. {"basededatos": {"usuarios": [...]}})
+            if len(data) == 1:
+                single_key = list(data.keys())[0]
+                single_val = data[single_key]
+                if isinstance(single_val, dict) and not any(k in single_val for k in ['$schema', 'definitions', '$defs', 'properties']):
+                    data = single_val
+
             # Detectar si es un JSON Schema
             is_json_schema = any(key in data for key in ['$schema', 'definitions', '$defs', 'properties'])
             # Verificar si las propiedades parecen definiciones de esquemas
             if is_json_schema:
                 return self._extract_from_json_schema(data, format_type)
-
+            
             # Caso 1: Objeto con tablas/collections
             if 'tables' in data or 'collections' in data:
                 items = data.get('tables', data.get('collections', {}))
@@ -98,6 +240,19 @@ class NoSQLAnalyzer:
                     # Diccionario de tablas
                     for name, item in items.items():
                         table = self._extract_table_from_object(item, name)
+                        if table:
+                            tables.append(table)
+            
+            # Caso 1.5: Objeto donde las claves representan colecciones (ej. {"usuarios": [...], "productos": [...]})
+            elif any(isinstance(v, list) and (len(v) == 0 or any(isinstance(item, dict) for item in v)) for v in data.values()):
+                for name, val in data.items():
+                    if isinstance(val, list):
+                        if len(val) == 0 or any(isinstance(item, dict) for item in val):
+                            table = self._extract_table_from_array(val, name)
+                            if table:
+                                tables.append(table)
+                    elif isinstance(val, dict):
+                        table = self._extract_table_from_object(val, name)
                         if table:
                             tables.append(table)
             
