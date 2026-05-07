@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 import os
 import sys
+import io
 import warnings
+
+# Forzar salida en UTF-8 para evitar problemas de caracteres () en Windows Node.js
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # Suprimir TODAS las advertencias y logs ruidosos antes de importar nada más
 warnings.filterwarnings("ignore")
@@ -75,6 +79,13 @@ class DatabaseAnalyzer:
                 result['analysis']['schema']
             )
             
+            # Generar la Opinión del sistema (Heurísticas, sin IA)
+            result['analysis']['opinion'] = self._generate_opinion(
+                result['analysis'].get('metrics', {}),
+                result['analysis'].get('anomalies', []),
+                file_extension
+            )
+            
             return result
             
         except Exception as e:
@@ -123,6 +134,41 @@ class DatabaseAnalyzer:
             'metrics': self.nosql_analyzer.calculate_metrics(schema),
             'anomalies': self.nosql_analyzer.detect_anomalies(schema)
         }
+
+    def _generate_opinion(self, metrics: dict, anomalies: list, format_type: str) -> str:
+        """
+        Genera un párrafo de opinión estilo IA basado en las métricas y anomalías.
+        """
+        total_tables = metrics.get('totalTables', 0)
+        
+        opinion = f"He completado el análisis de la base de datos ({format_type.upper()}). "
+        
+        if total_tables == 0:
+            return opinion + "Sin embargo, no pude detectar ninguna tabla o colección válida en la estructura."
+            
+        opinion += f"El esquema contiene un total de {total_tables} entidades (tablas/colecciones). "
+        
+        # Analizar salud general
+        if not anomalies:
+            opinion += "El esquema parece estar perfectamente normalizado y no he detectado anomalías estructurales ni problemas de integridad. ¡Excelente trabajo! "
+        else:
+            high_sev = [a for a in anomalies if a.get('severity') == 'high']
+            med_sev = [a for a in anomalies if a.get('severity') == 'medium']
+            
+            if high_sev:
+                opinion += f"Se han detectado {len(high_sev)} problemas críticos de alta severidad que deberían solucionarse inmediatamente para garantizar la integridad referencial y de datos. "
+            if med_sev:
+                opinion += f"Además, hay {len(med_sev)} oportunidades de optimización y normalización que sugiero revisar. "
+                
+        # Detalle específico si hay anomalías
+        if anomalies:
+            opinion += "Entre los hallazgos principales destacan: "
+            # Tomar hasta 3 anomalías representativas
+            for i, anomaly in enumerate(anomalies[:3]):
+                opinion += f" {i+1}) En '{anomaly.get('table', 'unknown')}': {anomaly.get('message', '')}."
+                
+        opinion += " Te recomiendo revisar el listado completo de anomalías abajo para mejorar la salud general de la estructura de datos."
+        return opinion
 
 def main():
     parser = argparse.ArgumentParser(description='Analizador de Bases de Datos con Python')

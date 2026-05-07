@@ -191,4 +191,57 @@ class SQLAnalyzer:
         return round(float(min(100, (score / (len(tables) * 2)) * 100)), 2)
 
     def detect_anomalies(self, schema: Dict[str, Any]) -> List[Dict[str, Any]]:
-        return []
+        anomalies = []
+        tables = schema.get('tables', [])
+        
+        for table in tables:
+            name = table.get('name', 'unknown')
+            columns = table.get('columns', [])
+            pks = table.get('primaryKeys', [])
+            fks = table.get('foreignKeys', [])
+            
+            # Regla 1: Identificar tablas sin Clave Primaria
+            if not pks:
+                anomalies.append({
+                    'type': 'warning',
+                    'severity': 'high',
+                    'table': name,
+                    'message': f"La tabla '{name}' no tiene Clave Primaria definida. Esto afecta gravemente el rendimiento y la integridad de los datos."
+                })
+                
+            # Regla 2: Tablas con demasiadas columnas (Falta de Normalización)
+            if len(columns) > 15:
+                anomalies.append({
+                    'type': 'optimization',
+                    'severity': 'medium',
+                    'table': name,
+                    'message': f"La tabla '{name}' tiene {len(columns)} columnas. Es una cantidad elevada que sugiere falta de normalización. Se recomienda dividirla (1FN/2FN)."
+                })
+                
+            # Regla 3: Identificar posibles relaciones huérfanas (nombres de columna sugerentes)
+            for col in columns:
+                col_name = col.get('name', '').lower()
+                if ('id' in col_name or 'codigo' in col_name) and col_name not in [pk.lower() for pk in pks]:
+                    has_fk = any(fk['column'].lower() == col_name for fk in fks)
+                    if not has_fk:
+                        anomalies.append({
+                            'type': 'suggestion',
+                            'severity': 'low',
+                            'table': name,
+                            'message': f"La columna '{col.get('name')}' parece ser una referencia externa, pero no tiene una llave foránea (FOREIGN KEY) explícita configurada."
+                        })
+                        
+        # Regla 4: Bases de datos desconectadas (Tablas sin ninguna relación)
+        if len(tables) > 1:
+            all_referenced_tables = [fk['references']['table'].lower() for t in tables for fk in t.get('foreignKeys', [])]
+            for table in tables:
+                name_lower = table.get('name', '').lower()
+                if not table.get('foreignKeys') and name_lower not in all_referenced_tables:
+                    anomalies.append({
+                        'type': 'isolation',
+                        'severity': 'medium',
+                        'table': table.get('name', ''),
+                        'message': f"La tabla '{table.get('name')}' se encuentra aislada. No tiene relaciones de salida ni de entrada con el resto del esquema."
+                    })
+
+        return anomalies

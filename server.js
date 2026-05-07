@@ -602,70 +602,97 @@ app.post('/analyze-python', upload.single('file'), async (req, res) => {
 // Función para generar documentación básica con Python
 function generatePythonDocumentation(analysis) {
     const schema = analysis.schema;
-    const validation = analysis.validation;
-    const metrics = analysis.metrics;
-    const anomalies = analysis.anomalies;
-
-    let documentation = `# Documentación Técnica de Base de Datos\n\n`;
-    documentation += `## 📊 Análisis General\n\n`;
+    const metrics = analysis.metrics || {};
+    const anomalies = analysis.anomalies || [];
+    const normScore = metrics.normalizationScore || 50;
     
-    // Métricas
-    documentation += `### Métricas del Esquema\n`;
-    documentation += `- **Tablas Totales**: ${metrics.totalTables}\n`;
-    documentation += `- **Columnas Totales**: ${metrics.totalColumns}\n`;
-    documentation += `- **Claves Primarias**: ${metrics.totalPrimaryKeys}\n`;
-    documentation += `- **Claves Foráneas**: ${metrics.totalForeignKeys}\n`;
-    documentation += `- **Promedio de Columnas por Tabla**: ${metrics.avgColumnsPerTable?.toFixed(1) || 0}\n`;
-    documentation += `- **Puntaje de Normalización**: ${metrics.normalizationScore?.toFixed(1) || 0}%\n\n`;
+    // Calcular el porcentaje para la barra de progreso
+    const progressFill = Math.round(normScore / 10);
+    const progressEmpty = 10 - progressFill;
+    const bar = '[' + '█'.repeat(progressFill) + '░'.repeat(progressEmpty) + `] ${normScore}%`;
 
-    // Validación
-    if (validation && !validation.isValid) {
-        documentation += `### ⚠️ Problemas Detectados\n`;
-        validation.errors?.forEach(error => {
-            documentation += `- ${error}\n`;
-        });
-        documentation += `\n`;
+    let doc = `# Documentación Técnica de Base de Datos (Generada Localmente)\n\n`;
+
+    // ----------------- SECCIÓN 1: ANÁLISIS GENERAL -----------------
+    doc += `## 1. ANÁLISIS GENERAL\n\n`;
+    doc += `${bar}\n\n`;
+    
+    // Opinión General generada en main.py
+    if (analysis.opinion) {
+        doc += `${analysis.opinion}\n\n`;
     }
 
-    if (validation && validation.warnings?.length > 0) {
-        documentation += `### 🔍 Advertencias\n`;
-        validation.warnings?.forEach(warning => {
-            documentation += `- ${warning}\n`;
-        });
-        documentation += `\n`;
-    }
+    doc += `### Métricas Clave\n`;
+    doc += `- **Integridad y Relaciones**: ${schema.relations ? schema.relations.length : 0} detectadas.\n`;
+    doc += `- **Normalización**: ${normScore}%\n`;
+    doc += `- **Tablas Totales**: ${metrics.totalTables || 0}\n`;
+    doc += `- **Columnas Totales**: ${metrics.totalColumns || 0}\n\n`;
 
-    // Anomalías
-    if (anomalies && anomalies.length > 0) {
-        documentation += `### 🚨 Anomalías Encontradas\n`;
-        anomalies.forEach(anomaly => {
-            const severity = anomaly.severity === 'high' ? '🔴' : 
-                           anomaly.severity === 'medium' ? '🟡' : '🟢';
-            documentation += `- ${severity} **${anomaly.table}**: ${anomaly.description}\n`;
-            documentation += `  - *Recomendación*: ${anomaly.recommendation}\n`;
-        });
-        documentation += `\n`;
-    }
-
-    // Diccionario de datos
-    documentation += `## 📋 Diccionario de Datos\n\n`;
+    // ----------------- SECCIÓN 2: DICCIONARIO DE DATOS -----------------
+    doc += `## 2. DICCIONARIO DE DATOS\n\n`;
     schema.tables?.forEach(table => {
-        documentation += `### **${table.name}**\n\n`;
-        documentation += `**Descripción**: Tabla con ${table.columns?.length || 0} columnas.\n\n`;
-        documentation += `| Campo | Tipo de dato | Nulable | PK | Auto |\n`;
-        documentation += `|-------|--------------|----------|----|------|\n`;
+        doc += `### **${table.name}**\n`;
+        doc += `Descripción: Entidad que almacena los registros correspondientes a ${table.name}. Cuenta con ${table.columns?.length || 0} columnas.\n\n`;
+        doc += `| Campo | Tipo de dato | Descripción | Observaciones |\n`;
+        doc += `|-------|--------------|-------------|----------------|\n`;
         
         table.columns?.forEach(column => {
-            const nullable = column.nullable ? '✓' : '✗';
-            const pk = column.primaryKey ? '✓' : '✗';
-            const auto = column.autoIncrement ? '✓' : '✗';
+            let obs = [];
+            if (column.primaryKey) obs.push("PK");
+            if (!column.nullable) obs.push("NOT NULL");
+            if (column.autoIncrement) obs.push("AUTO_INCREMENT");
             
-            documentation += `| ${column.name} | ${column.type} | ${nullable} | ${pk} | ${auto} |\n`;
+            // Detectar FK simple basándose en el nombre
+            const fk = table.foreignKeys?.find(f => f.column === column.name);
+            if (fk) obs.push(`FK -> ${fk.references?.table || fk.referencesTable}`);
+            
+            doc += `| ${column.name} | ${column.type} | Campo '${column.name}' de tipo ${column.type}. | ${obs.join(", ") || "-"} |\n`;
         });
-        documentation += `\n`;
+        doc += `\n`;
     });
 
-    return documentation;
+    // ----------------- SECCIÓN 3: ANÁLISIS DE VÍNCULOS Y RELACIONES -----------------
+    doc += `## 3. ANÁLISIS DE VÍNCULOS Y RELACIONES\n\n`;
+    if (schema.relations && schema.relations.length > 0) {
+        doc += `Se han detectado las siguientes relaciones clave en el esquema:\n\n`;
+        schema.relations.forEach(rel => {
+            doc += `- **${rel.from}** se relaciona con **${rel.to}** mediante el campo \`${rel.column}\`.\n`;
+        });
+    } else {
+        doc += `No se han detectado relaciones (Foreign Keys) explícitas en el esquema. Esto puede comprometer la integridad referencial si se trata de un modelo relacional.\n`;
+    }
+    doc += `\n`;
+
+    // ----------------- SECCIÓN 4: SUGERENCIAS DE OPTIMIZACIÓN -----------------
+    doc += `## 4. SUGERENCIAS DE OPTIMIZACIÓN\n\n`;
+    const optimizationAnomalies = anomalies.filter(a => a.type === 'optimization' || a.severity === 'medium');
+    
+    if (optimizationAnomalies.length > 0) {
+        optimizationAnomalies.forEach(anomaly => {
+            doc += `- **[MEJORA]** En tabla **${anomaly.table}**: ${anomaly.message}\n`;
+        });
+    } else {
+        doc += `- **[ESTÁNDAR]** El esquema cumple con estándares básicos. Se recomienda asegurar el uso de índices en campos de búsqueda frecuente.\n`;
+        doc += `- **[MEJORA]** Revise que los nombres de tablas mantengan coherencia (singular vs plural).\n`;
+    }
+    doc += `\n`;
+
+    // ----------------- SECCIÓN 5: CRÍTICA OBLIGATORIA -----------------
+    doc += `## 5. CRÍTICA OBLIGATORIA\n\n`;
+    const criticalAnomalies = anomalies.filter(a => a.severity === 'high');
+    
+    if (criticalAnomalies.length > 0) {
+        doc += `El esquema presenta errores estructurales graves que deben ser abordados:\n\n`;
+        criticalAnomalies.forEach(anomaly => {
+            doc += `- **[CRÍTICO]** **${anomaly.table}**: ${anomaly.message}\n`;
+        });
+    } else if (normScore < 70) {
+        doc += `El diseño es funcional, pero el nivel de normalización (${normScore}%) es bajo. Esto puede llevar a redundancia de datos o problemas de actualización a futuro. Considere aplicar hasta la 3FN.\n`;
+    } else {
+        doc += `El diseño estructural es sólido. No se observan bloqueadores críticos. Sin embargo, en auditorías financieras se recomienda siempre asegurar que campos monetarios usen tipos exactos (ej. DECIMAL) y no aproximados (FLOAT).\n`;
+    }
+
+    return doc;
 }
 
 // Endpoint para subir y analizar archivos

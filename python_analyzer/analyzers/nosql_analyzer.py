@@ -476,13 +476,53 @@ class NoSQLAnalyzer:
 
     def detect_anomalies(self, schema: Dict[str, Any]) -> List[Dict[str, Any]]:
         anomalies = []
-        for table in schema.get('tables', []):
-            if not table.get('primaryKeys'):
+        tables = schema.get('tables', [])
+        
+        for table in tables:
+            name = table.get('name', 'unknown')
+            columns = table.get('columns', [])
+            pks = table.get('primaryKeys', [])
+            fks = table.get('foreignKeys', [])
+            
+            # Regla 1: Identificar tablas o colecciones sin Clave Primaria (o ID)
+            if not pks:
                 anomalies.append({
-                    'type': 'missing_pk',
-                    'severity': 'medium',
-                    'table': table['name'],
-                    'description': f"Tabla {table['name']} sin PK",
-                    'recommendation': 'Definir un identificador único'
+                    'type': 'warning',
+                    'severity': 'high',
+                    'table': name,
+                    'message': f"El documento/tabla '{name}' no tiene un campo identificador único (ID o Clave Primaria). Esto dificulta la búsqueda o modificación de registros específicos."
                 })
+                
+            # Regla 2: Documentos con demasiadas propiedades
+            if len(columns) > 25:
+                anomalies.append({
+                    'type': 'optimization',
+                    'severity': 'medium',
+                    'table': name,
+                    'message': f"La estructura '{name}' tiene {len(columns)} propiedades. Es bastante densa. Evalúe si algunas propiedades podrían anidarse o separarse en otra colección."
+                })
+                
+            # Regla 3: Referencias o IDs sueltos
+            for col in columns:
+                col_name = col.get('name', '').lower()
+                if ('id' in col_name or 'codigo' in col_name) and col_name not in [pk.lower() for pk in pks]:
+                    has_fk = any(fk['column'].lower() == col_name for fk in fks)
+                    if not has_fk:
+                        anomalies.append({
+                            'type': 'suggestion',
+                            'severity': 'low',
+                            'table': name,
+                            'message': f"El campo '{col.get('name')}' sugiere una relación hacia otra colección/tabla, pero no se ha podido inferir una referencia clara."
+                        })
+                        
+            # Regla 4: Tipos de datos "desconocidos" o puros VARCHAR(255)
+            unknown_cols = [c['name'] for c in columns if c.get('type') == 'VARCHAR(255)' or c.get('type') == 'UNKNOWN']
+            if unknown_cols and len(unknown_cols) > len(columns) * 0.8:
+                anomalies.append({
+                    'type': 'typing',
+                    'severity': 'medium',
+                    'table': name,
+                    'message': f"Más del 80% de los campos en '{name}' son de texto genérico (VARCHAR/String). Esto puede consumir más espacio o afectar la validación."
+                })
+
         return anomalies
