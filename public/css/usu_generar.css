@@ -1573,12 +1573,12 @@ body {
 /* Si usas .main-content específicamente, asegura que herede el comportamiento */
 .main-content {
     overflow-y: auto;
-    padding: 24px 32px;
+    padding: 40px;
 }
 
 .main-content {
     flex: 1;
-    padding: 24px 32px;
+    padding: 40px;
     overflow-y: auto;
     height: 100%;
 }

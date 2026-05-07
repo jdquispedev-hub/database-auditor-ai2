@@ -12,19 +12,26 @@
 <div class="dashboard-wrapper">
     <aside class="sidebar">
         <div class="logo-sidebar">DataScript AI</div>
-        <a href="usu_generar.html" class="menu-item active">Dashboard</a>
+        <a href="usu_panel.html" class="menu-item active">Dashboard</a>
         <a href="usu_generar.html" class="menu-item">Generar documento</a>
         <a href="usu_guardados.html" class="menu-item">Documentos guardados</a>
-        <div class="menu-item logout" id="logoutBtn">Cerrar Sesion</div>
+        <div class="menu-item logout" id="logoutBtn">Cerrar Sesión</div>
     </aside>
     <main class="content">
-        <div id="dynamicView">
-            <div class="loading">Cargando dashboard...</div>
+        <h1>Dashboard</h1>
+        <div class="cards-grid">
+            <div class="stat-card"><h3>N° de documentos</h3><div class="stat-number" id="totalDocs">--</div><span class="ingresar-link" id="verGuardadosLink">Ingresar >></span></div>
+            <div class="stat-card"><h3>Espacios de trabajo</h3><div class="stat-number">2</div><span class="ingresar-link">Ingresar >></span></div>
+            <div class="stat-card"><h3>Antigüedad (días)</h3><div class="stat-number" id="antiguedad">--</div><span class="ingresar-link">Ingresar >></span></div>
+        </div>
+        <div class="grafico-container">
+            <h3>Actividad mensual</h3>
+            <canvas id="actividadChart" width="400" height="200"></canvas>
+            <div id="mensajeInfo" class="mensaje" style="display: none;"></div>
         </div>
         <footer class="footer"><center>Tiempo de actividad: Año 2026</center></footer>
     </main>
 </div>
-
-<script src="/public/js/usu_panel.js"></script>
+<script src="../js/usu_panel.js"></script>
 </body>
 </html>
