@@ -60,10 +60,14 @@ class DatabaseAnalyzer:
             
             if file_extension in ['.sql', '.txt']:
                 result['analysis'] = self._analyze_sql(content)
+            elif file_extension == '.dbml':
+                result['analysis'] = self._analyze_dbml(content)
             elif file_extension == '.json':
                 result['analysis'] = self._analyze_json(content)
             elif file_extension in ['.yaml', '.yml']:
                 result['analysis'] = self._analyze_yaml(content)
+            elif file_extension == '.csv':
+                result['analysis'] = self._analyze_csv(file_path)
             elif file_extension in ['.xlsx', '.xls']:
                 result['analysis'] = self._analyze_excel(file_path)
             else:
@@ -103,6 +107,25 @@ class DatabaseAnalyzer:
             'validation': self.sql_analyzer.validate_schema(schema),
             'metrics': self.sql_analyzer.calculate_metrics(schema),
             'anomalies': self.sql_analyzer.detect_anomalies(schema)
+        }
+    def _analyze_dbml(self, content: str) -> dict:
+        schema = self.sql_analyzer.parse_dbml(content)
+        return {
+            'schema': schema,
+            'type': 'sql',
+            'validation': self.sql_analyzer.validate_schema(schema),
+            'metrics': self.sql_analyzer.calculate_metrics(schema),
+            'anomalies': self.sql_analyzer.detect_anomalies(schema)
+        }
+
+    def _analyze_csv(self, file_path: Path) -> dict:
+        schema = self.nosql_analyzer.parse_csv(file_path)
+        return {
+            'schema': schema,
+            'type': 'nosql',
+            'validation': self.nosql_analyzer.validate_schema(schema),
+            'metrics': self.nosql_analyzer.calculate_metrics(schema),
+            'anomalies': self.nosql_analyzer.detect_anomalies(schema)
         }
     
     def _analyze_json(self, content: str) -> dict:

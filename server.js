@@ -179,7 +179,38 @@ function parseSQL(content) {
         }
     }
 
-    return { tables, relations };
+    // Extraer vistas, triggers y procedimientos
+    const views = [];
+    const triggers = [];
+    const procedures = [];
+
+    const viewRegex = /CREATE\s+VIEW\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:`|")?(\w+)(?:`|")?\s+AS/gi;
+    let viewMatch;
+    while ((viewMatch = viewRegex.exec(content)) !== null) {
+        views.push({ name: viewMatch[1] });
+    }
+
+    const triggerRegex = /CREATE\s+TRIGGER\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:`|")?(\w+)(?:`|")?\s+(BEFORE|AFTER)\s+(INSERT|UPDATE|DELETE)\s+ON\s+(?:`|")?(\w+)(?:`|")?/gi;
+    let triggerMatch;
+    while ((triggerMatch = triggerRegex.exec(content)) !== null) {
+        triggers.push({
+            name: triggerMatch[1],
+            action: triggerMatch[2].toUpperCase(),
+            event: triggerMatch[3].toUpperCase(),
+            table: triggerMatch[4]
+        });
+    }
+
+    const procRegex = /CREATE\s+PROCEDURE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:`|")?(\w+)(?:`|")?\s*\(([\s\S]*?)\)/gi;
+    let procMatch;
+    while ((procMatch = procRegex.exec(content)) !== null) {
+        procedures.push({
+            name: procMatch[1],
+            parameters: procMatch[2].replace(/\s+/g, ' ').trim()
+        });
+    }
+
+    return { tables, relations, views, triggers, procedures };
 }
 
 // Parser de archivos JSON (esquemas)
@@ -226,22 +257,68 @@ function parseJSON(content) {
                 });
             } else {
                 // Si es un objeto con tablas
-                Object.keys(data).forEach(tableName => {
+                const hasExplicitColumns = Object.keys(data).some(tableName => {
                     const tableData = data[tableName];
-                    const columns = tableData && (tableData.columns || tableData.fields);
-                    if (typeof tableData === 'object' && columns) {
-                        tables.push({
-                            name: tableName,
-                            columns: columns.map(col => ({
-                                name: col.name || col.column,
-                                type: col.type || 'string',
-                                nullable: col.nullable !== false,
-                                primaryKey: col.primaryKey || false,
-                                autoIncrement: col.autoIncrement || false
-                            }))
-                        });
-                    }
+                    return typeof tableData === 'object' && tableData !== null && (tableData.columns || tableData.fields);
                 });
+
+                if (hasExplicitColumns) {
+                    Object.keys(data).forEach(tableName => {
+                        const tableData = data[tableName];
+                        const columns = tableData && (tableData.columns || tableData.fields);
+                        if (typeof tableData === 'object' && columns) {
+                            tables.push({
+                                name: tableName,
+                                columns: columns.map(col => ({
+                                    name: col.name || col.column,
+                                    type: col.type || 'string',
+                                    nullable: col.nullable !== false,
+                                    primaryKey: col.primaryKey || false,
+                                    autoIncrement: col.autoIncrement || false
+                                }))
+                            });
+                        }
+                    });
+                } else {
+                    // Si es un objeto donde cada clave es una colección/tabla directa (ej. usuarios: [...])
+                    Object.keys(data).forEach(tableName => {
+                        if (tableName === 'relations') return;
+                        const tableData = data[tableName];
+                        if (Array.isArray(tableData)) {
+                            // Extraer columnas de los objetos del array
+                            const columnsMap = {};
+                            tableData.forEach(row => {
+                                if (typeof row === 'object' && row !== null) {
+                                    Object.keys(row).forEach(colName => {
+                                        if (!columnsMap[colName]) {
+                                            const val = row[colName];
+                                            let inferredType = 'string';
+                                            if (typeof val === 'number') inferredType = Number.isInteger(val) ? 'integer' : 'float';
+                                            else if (typeof val === 'boolean') inferredType = 'boolean';
+                                            else if (typeof val === 'object' && val !== null) inferredType = 'json';
+                                            
+                                            columnsMap[colName] = {
+                                                name: colName,
+                                                type: inferredType,
+                                                nullable: true,
+                                                primaryKey: colName.toLowerCase() === 'id' || colName.toLowerCase() === '_id',
+                                                autoIncrement: false
+                                            };
+                                        }
+                                    });
+                                }
+                            });
+
+                            const columns = Object.values(columnsMap);
+                            if (columns.length > 0) {
+                                tables.push({
+                                    name: tableName,
+                                    columns: columns
+                                });
+                            }
+                        }
+                    });
+                }
             }
             if (Array.isArray(data.relations)) {
                 relations.push(...data.relations);
@@ -305,9 +382,11 @@ function validateDatabaseContent(content, fileExtension) {
             return parsed.hasOwnProperty('tables') ||
                 parsed.hasOwnProperty('collections') ||
                 Array.isArray(parsed) ||
-                (typeof parsed === 'object' && Object.keys(parsed).some(key =>
-                    typeof parsed[key] === 'object' && (parsed[key].hasOwnProperty('columns') || parsed[key].hasOwnProperty('fields'))
-                ));
+                (typeof parsed === 'object' && Object.keys(parsed).some(key => {
+                    const val = parsed[key];
+                    return (typeof val === 'object' && val !== null && (val.hasOwnProperty('columns') || val.hasOwnProperty('fields'))) ||
+                           (Array.isArray(val) && (val.length === 0 || typeof val[0] === 'object'));
+                }));
         } catch {
             return false;
         }
@@ -691,6 +770,36 @@ function generatePythonDocumentation(analysis) {
         doc += `El diseño es funcional, pero el nivel de normalización (${normScore}%) es bajo. Esto puede llevar a redundancia de datos o problemas de actualización a futuro. Considere aplicar hasta la 3FN.\n`;
     } else {
         doc += `El diseño estructural es sólido. No se observan bloqueadores críticos. Sin embargo, en auditorías financieras se recomienda siempre asegurar que campos monetarios usen tipos exactos (ej. DECIMAL) y no aproximados (FLOAT).\n`;
+    }
+    doc += `\n`;
+
+    // ----------------- SECCIÓN 6: COMPONENTES AVANZADOS (VISTAS, TRIGGERS Y PROCEDIMIENTOS) -----------------
+    if ((schema.views && schema.views.length > 0) || (schema.triggers && schema.triggers.length > 0) || (schema.procedures && schema.procedures.length > 0)) {
+        doc += `## 6. COMPONENTES AVANZADOS (VISTAS, TRIGGERS Y PROCEDIMIENTOS)\n\n`;
+        
+        if (schema.views && schema.views.length > 0) {
+            doc += `### Vistas Detectadas\n`;
+            schema.views.forEach(v => {
+                doc += `- **${v.name}**: Vista virtual que simplifica el acceso a consultas complejas.\n`;
+            });
+            doc += `\n`;
+        }
+        
+        if (schema.triggers && schema.triggers.length > 0) {
+            doc += `### Triggers (Disparadores) Detectados\n`;
+            schema.triggers.forEach(t => {
+                doc += `- **${t.name}**: Se ejecuta **${t.action} ${t.event}** sobre la tabla \`${t.table}\` para automatizar lógica de negocio.\n`;
+            });
+            doc += `\n`;
+        }
+        
+        if (schema.procedures && schema.procedures.length > 0) {
+            doc += `### Procedimientos Almacenados Detectados\n`;
+            schema.procedures.forEach(p => {
+                doc += `- **${p.name}(${p.parameters || ''})**: Automatiza tareas repetitivas y consultas complejas en el servidor.\n`;
+            });
+            doc += `\n`;
+        }
     }
 
     return doc;

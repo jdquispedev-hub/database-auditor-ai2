@@ -14,6 +14,107 @@ class SQLAnalyzer:
             'bigquery', 'snowflake', 'redshift', 'clickhouse'
         ]
     
+    def parse_dbml(self, content: str) -> Dict[str, Any]:
+        """Parsea contenido DBML y extrae esquema con tablas y relaciones"""
+        tables = []
+        relations = []
+        
+        # Encontrar bloques de Table name { ... }
+        table_regex = re.compile(r'Table\s+(?:`|")?(\w+)(?:`|")?\s*\{([\s\S]*?)\}', re.IGNORECASE)
+        for table_match in table_regex.finditer(content):
+            table_name = table_match.group(1)
+            body = table_match.group(2)
+            
+            columns = []
+            primary_keys = []
+            foreign_keys = []
+            
+            # Procesar cada línea del cuerpo de la tabla
+            for line in body.split('\n'):
+                line = re.sub(r'(//|#).*$', '', line).strip() # Eliminar comentarios
+                if not line:
+                    continue
+                
+                # Ejemplo de línea: id integer [primary key, increment]
+                field_match = re.match(r'^(?:`|")?(\w+)(?:`|")?\s+([A-Za-z0-9_]+(?:\([\s\S]*?\))?)(?:\s+\[([\s\S]*?)\])?', line)
+                if field_match:
+                    col_name = field_match.group(1)
+                    col_type = field_match.group(2).upper()
+                    settings = field_match.group(3) or ''
+                    
+                    primary_key = 'primary key' in settings.lower() or 'pk' in settings.lower()
+                    auto_increment = 'increment' in settings.lower() or 'unique' in settings.lower()
+                    nullable = 'not null' not in settings.lower()
+                    
+                    if primary_key:
+                        primary_keys.append(col_name)
+                        
+                    columns.append({
+                        'name': col_name,
+                        'type': col_type,
+                        'nullable': nullable,
+                        'primaryKey': primary_key,
+                        'autoIncrement': auto_increment
+                    })
+            
+            tables.append({
+                'name': table_name,
+                'columns': columns,
+                'primaryKeys': primary_keys,
+                'foreignKeys': foreign_keys
+            })
+            
+        # Encontrar relaciones Ref
+        ref_regex = re.compile(r'Ref(?:\s+\w+)?\s*:\s*(?:`|")?(\w+)(?:`|")?\.([A-Za-z0-9_]+)\s*([><-])\s*(?:`|")?(\w+)(?:`|")?\.([A-Za-z0-9_]+)', re.IGNORECASE)
+        for ref_match in ref_regex.finditer(content):
+            table_from = ref_match.group(1)
+            col_from = ref_match.group(2)
+            op = ref_match.group(3)
+            table_to = ref_match.group(4)
+            col_to = ref_match.group(5)
+            
+            if op == '<':
+                table_from, table_to = table_to, table_from
+                col_from, col_to = col_to, col_from
+                
+            relations.append({
+                'from': table_from,
+                'to': table_to,
+                'type': 'foreign_key',
+                'column': col_from,
+                'references': col_to
+            })
+            
+            table = next((t for t in tables if t['name'] == table_from), None)
+            if table:
+                table['foreignKeys'].append({
+                    'column': col_from,
+                    'references': {'table': table_to, 'column': col_to}
+                })
+                
+        implicit_relations = self._detect_implicit_relations(tables)
+        relations.extend(implicit_relations)
+        
+        seen_rels = set()
+        unique_relations = []
+        for rel in relations:
+            source, target, col = str(rel['from']), str(rel['to']), str(rel.get('column', ''))
+            rel_id = f"{source.lower()}->{target.lower()} ({col.lower()})"
+            if rel_id not in seen_rels and source.lower() != target.lower():
+                unique_relations.append({
+                    'from': source, 'to': target, 'type': rel.get('type', 'foreign_key'),
+                    'column': col, 'references': str(rel.get('references', 'id'))
+                })
+                seen_rels.add(rel_id)
+                
+        return {
+            'tables': tables,
+            'relations': unique_relations,
+            'dialect': 'dbml',
+            'totalTables': len(tables),
+            'totalRelations': len(unique_relations)
+        }
+
     def parse_sql(self, content: str) -> Dict[str, Any]:
         """Parsea contenido SQL y extrae esquema completo"""
         try:
@@ -62,13 +163,49 @@ class SQLAnalyzer:
                     })
                     seen_rels.add(rel_id)
             
-            return {
+            result = {
                 'tables': tables, 'relations': unique_relations, 'dialect': dialect,
                 'totalTables': len(tables), 'totalRelations': len(unique_relations)
             }
         except Exception:
-            return self._fallback_parse(content)
+            result = self._fallback_parse(content)
+            
+        result['triggers'] = self._extract_triggers(content)
+        result['procedures'] = self._extract_procedures(content)
+        result['views'] = self._extract_views(content)
+        return result
     
+    def _extract_triggers(self, content: str) -> List[Dict[str, Any]]:
+        triggers = []
+        trigger_regex = re.compile(r'CREATE\s+TRIGGER\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:`|")?(\w+)(?:`|")?\s+(BEFORE|AFTER)\s+(INSERT|UPDATE|DELETE)\s+ON\s+(?:`|")?(\w+)(?:`|")?', re.IGNORECASE)
+        for m in trigger_regex.finditer(content):
+            triggers.append({
+                'name': m.group(1),
+                'action': m.group(2).upper(),
+                'event': m.group(3).upper(),
+                'table': m.group(4)
+            })
+        return triggers
+
+    def _extract_procedures(self, content: str) -> List[Dict[str, Any]]:
+        procedures = []
+        proc_regex = re.compile(r'CREATE\s+PROCEDURE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:`|")?(\w+)(?:`|")?\s*\(([\s\S]*?)\)', re.IGNORECASE)
+        for m in proc_regex.finditer(content):
+            procedures.append({
+                'name': m.group(1),
+                'parameters': re.sub(r'\s+', ' ', m.group(2)).strip()
+            })
+        return procedures
+
+    def _extract_views(self, content: str) -> List[Dict[str, Any]]:
+        views = []
+        view_regex = re.compile(r'CREATE\s+VIEW\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:`|")?(\w+)(?:`|")?\s+AS', re.IGNORECASE)
+        for m in view_regex.finditer(content):
+            views.append({
+                'name': m.group(1)
+            })
+        return views
+
     def _detect_dialect(self, content: str) -> str:
         c = content.lower()
         if 'bigint' in c or 'serial' in c: return 'postgres'
@@ -165,8 +302,187 @@ class SQLAnalyzer:
         return None
     
     def _fallback_parse(self, content: str) -> Dict[str, Any]:
-        tables = [{'name': m.group(1), 'columns': [], 'primaryKeys': [], 'foreignKeys': []} for m in re.finditer(r'CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)', content, re.I)]
-        return {'tables': tables, 'relations': [], 'dialect': 'unknown', 'totalTables': len(tables), 'totalRelations': 0}
+        tables = []
+        relations = []
+        
+        # Encontrar bloques de CREATE TABLE ... ( ... )
+        # Usamos un regex para encontrar CREATE TABLE, capturando el nombre de la tabla y todo el bloque interior.
+        # Manejamos los paréntesis anidados contando su profundidad.
+        matches = list(re.finditer(r'CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:`|")?(\w+)(?:`|")?\s*\(', content, re.IGNORECASE))
+        
+        for i, match in enumerate(matches):
+            table_name = match.group(1)
+            start_pos = match.end()
+            
+            # Encontrar el paréntesis de cierre correspondiente
+            paren_depth = 1
+            end_pos = start_pos
+            while paren_depth > 0 and end_pos < len(content):
+                char = content[end_pos]
+                if char == '(':
+                    paren_depth += 1
+                elif char == ')':
+                    paren_depth -= 1
+                end_pos += 1
+            
+            if paren_depth == 0:
+                table_content = content[start_pos:end_pos-1]
+                table_content = re.sub(r'/\*[\s\S]*?\*/', '', table_content) # Eliminar comentarios de bloque
+                
+                columns = []
+                primary_keys = []
+                foreign_keys = []
+                
+                # Dividir por comas respetando paréntesis anidados (ej. DECIMAL(10,2))
+                parts = []
+                current_part = []
+                p_depth = 0
+                for char in table_content:
+                    if char == '(':
+                        p_depth += 1
+                    elif char == ')':
+                        p_depth -= 1
+                    
+                    if char == ',' and p_depth == 0:
+                        parts.append("".join(current_part).strip())
+                        current_part = []
+                    else:
+                        current_part.append(char)
+                if current_part:
+                    parts.append("".join(current_part).strip())
+                
+                for line in parts:
+                    line = re.sub(r'(--|#).*$', '', line).strip() # Eliminar comentarios de línea
+                    if not line:
+                        continue
+                    upper_line = line.upper()
+                    
+                    # Ignorar PRIMARY KEY al final si es redundante, o capturar PKs compuestas
+                    if upper_line.startswith('PRIMARY KEY'):
+                        pk_match = re.search(r'PRIMARY\s+KEY\s*\((.*?)\)', line, re.IGNORECASE)
+                        if pk_match:
+                            pks = [p.strip().replace('`', '').replace('"', '') for p in pk_match.group(1).split(',')]
+                            primary_keys.extend(pks)
+                        continue
+                        
+                    if upper_line.startswith('KEY') or upper_line.startswith('INDEX') or upper_line.startswith('UNIQUE'):
+                        continue
+                        
+                    if upper_line.startswith('CONSTRAINT') or upper_line.startswith('FOREIGN KEY'):
+                        fk_match = re.search(r'FOREIGN\s+KEY\s*\((?:`|")?(\w+)(?:`|")?\)\s*REFERENCES\s+(?:`|")?(\w+)(?:`|")?\s*\((?:`|")?(\w+)(?:`|")?\)', line, re.IGNORECASE)
+                        if fk_match:
+                            col_name = fk_match.group(1)
+                            ref_table = fk_match.group(2)
+                            ref_col = fk_match.group(3)
+                            foreign_keys.append({
+                                'column': col_name,
+                                'references': {'table': ref_table, 'column': ref_col}
+                            })
+                            relations.append({
+                                'from': table_name,
+                                'to': ref_table,
+                                'type': 'foreign_key',
+                                'column': col_name,
+                                'references': ref_col
+                            })
+                        continue
+                    
+                    # Detectar relación en la misma línea de la columna (inline)
+                    inline_fk_match = re.search(r'^(?:`|")?(\w+)(?:`|")?\s+[\w()]+\s+.*?REFERENCES\s+(?:`|")?(\w+)(?:`|")?\s*\((?:`|")?(\w+)(?:`|")?\)', line, re.IGNORECASE)
+                    if inline_fk_match:
+                        col_name = inline_fk_match.group(1)
+                        ref_table = inline_fk_match.group(2)
+                        ref_col = inline_fk_match.group(3)
+                        foreign_keys.append({
+                            'column': col_name,
+                            'references': {'table': ref_table, 'column': ref_col}
+                        })
+                        relations.append({
+                            'from': table_name,
+                            'to': ref_table,
+                            'type': 'foreign_key',
+                            'column': col_name,
+                            'references': ref_col
+                        })
+                    
+                    # Parsear columna: nombre, tipo, constraints
+                    col_match = re.match(r'^(?:`|")?(\w+)(?:`|")?\s+([A-Za-z0-9_]+(?:\([\s\S]*?\))?)(.*)$', line)
+                    if col_match:
+                        col_name = col_match.group(1)
+                        col_type = col_match.group(2)
+                        constraints = col_match.group(3) or ''
+                        
+                        nullable = not 'NOT NULL' in constraints.upper()
+                        primary_key = 'PRIMARY KEY' in constraints.upper()
+                        auto_increment = 'AUTO_INCREMENT' in constraints.upper()
+                        
+                        if primary_key:
+                            primary_keys.append(col_name)
+                            
+                        columns.append({
+                            'name': col_name,
+                            'type': col_type.upper(),
+                            'nullable': nullable,
+                            'primaryKey': primary_key,
+                            'autoIncrement': auto_increment
+                        })
+                
+                # Consolidar PKs en las columnas
+                primary_keys = list(dict.fromkeys(primary_keys))
+                for col in columns:
+                    if col['name'] in primary_keys:
+                        col['primaryKey'] = True
+                        
+                tables.append({
+                    'name': table_name,
+                    'columns': columns,
+                    'primaryKeys': primary_keys,
+                    'foreignKeys': foreign_keys
+                })
+        
+        # Buscar relaciones ALTER TABLE para llaves foráneas fuera de CREATE TABLE
+        alter_table_regex = re.compile(r'ALTER\s+TABLE\s+(?:`|")?(\w+)(?:`|")?\s+ADD\s+(?:CONSTRAINT\s+\w+\s+)?FOREIGN\s+KEY\s*\((?:`|")?(\w+)(?:`|")?\)\s*REFERENCES\s+(?:`|")?(\w+)(?:`|")?\s*\((?:`|")?(\w+)(?:`|")?\)', re.IGNORECASE)
+        for alter_match in alter_table_regex.finditer(content):
+            table_name = alter_match.group(1)
+            col_name = alter_match.group(2)
+            ref_table = alter_match.group(3)
+            ref_col = alter_match.group(4)
+            
+            relations.append({
+                'from': table_name,
+                'to': ref_table,
+                'type': 'foreign_key',
+                'column': col_name,
+                'references': ref_col
+            })
+            
+            table = next((t for t in tables if t['name'] == table_name), None)
+            if table:
+                table['foreignKeys'].append({
+                    'column': col_name,
+                    'references': {'table': ref_table, 'column': ref_col}
+                })
+                
+        # Consolidar y detectar relaciones implícitas
+        implicit_relations = self._detect_implicit_relations(tables)
+        relations.extend(implicit_relations)
+        
+        seen_rels = set()
+        unique_relations = []
+        for rel in relations:
+            source, target, col = str(rel['from']), str(rel['to']), str(rel.get('column', ''))
+            rel_id = f"{source.lower()}->{target.lower()} ({col.lower()})"
+            if rel_id not in seen_rels and source.lower() != target.lower():
+                unique_relations.append({
+                    'from': source, 'to': target, 'type': rel.get('type', 'foreign_key'),
+                    'column': col, 'references': str(rel.get('references', 'id'))
+                })
+                seen_rels.add(rel_id)
+                
+        return {
+            'tables': tables, 'relations': unique_relations, 'dialect': 'unknown',
+            'totalTables': len(tables), 'totalRelations': len(unique_relations)
+        }
 
     def validate_schema(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         return {'isValid': True, 'errors': [], 'warnings': [], 'suggestions': []}
