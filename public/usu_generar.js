@@ -125,6 +125,11 @@ function setupEventListeners() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', switchTab);
     });
+
+    const saveDocBtn = document.getElementById('saveDocBtn');
+    if (saveDocBtn) {
+        saveDocBtn.addEventListener('click', saveDocumentToSupabase);
+    }
 }
 
 
@@ -1866,5 +1871,178 @@ async function downloadSchemaPdfBtn() {
     } finally {
         originalBtn.disabled = false;
         originalBtn.innerHTML = originalContent;
+    }
+}
+
+async function saveDocumentToSupabase() {
+    if (!currentResults) {
+        alert('No hay resultados de documentación para guardar.');
+        return;
+    }
+    const userId = sessionStorage.getItem('ds_user');
+    if (!userId) {
+        alert('Sesión de usuario no encontrada.');
+        return;
+    }
+
+    const defaultName = selectedFile ? selectedFile.name.split('.')[0] + '_doc' : 'Documento';
+    const nombre = prompt('Ingresa un nombre para guardar esta documentación en Supabase:', defaultName);
+    if (!nombre) return;
+
+    const saveBtn = document.getElementById('saveDocBtn');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '⚡ Subiendo PDF a Storage...';
+
+    try {
+        const SUPABASE_URL = 'https://anzravhguhsdfnjfsjcm.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_sIB2jrePXiRBfBidFDFRjA_JeYe5cfP';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Generar PDF como Blob
+        let pdfUrl = '';
+        const element = document.getElementById('documentationContent');
+        if (element) {
+            const canvas = await html2canvas(element, {
+                scale: 2, // Súper nítido y en alta resolución
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                onclone: (clonedDoc) => {
+                    const clonedElement = clonedDoc.getElementById('documentationContent');
+                    if (clonedElement) {
+                        clonedElement.style.color = '#1f2937';
+                        clonedElement.style.backgroundColor = '#ffffff';
+                        clonedElement.style.padding = '15mm 20mm'; // Margen interno del contenedor
+                        
+                        // Forzar a todos los elementos internos a tener colores legibles en fondo blanco
+                        clonedElement.querySelectorAll('*').forEach(el => {
+                            el.style.backgroundColor = 'transparent';
+                            if (el.tagName === 'H1' || el.tagName === 'H2' || el.tagName === 'H3' || el.tagName === 'H4') {
+                                el.style.color = '#1e3a8a'; // Azul corporativo elegante
+                                el.style.borderBottom = '2px solid #e5e7eb';
+                                el.style.paddingBottom = '6px';
+                                el.style.marginTop = '40px'; // Empujar títulos hacia abajo para evitar cortes a la mitad
+                                el.style.marginBottom = '20px';
+                                el.style.fontWeight = '700';
+                            } else if (el.tagName === 'P') {
+                                el.style.color = '#374151';
+                                el.style.lineHeight = '1.7'; // Espaciado cómodo entre líneas
+                                el.style.marginBottom = '18px';
+                            } else if (el.tagName === 'TH') {
+                                el.style.color = '#111827';
+                                el.style.backgroundColor = '#f3f4f6';
+                                el.style.borderColor = '#d1d5db';
+                                el.style.fontWeight = '600';
+                                el.style.padding = '10px';
+                            } else if (el.tagName === 'TD') {
+                                el.style.color = '#374151';
+                                el.style.borderColor = '#e5e7eb';
+                                el.style.padding = '10px';
+                            } else if (el.tagName === 'A') {
+                                el.style.color = '#2563eb';
+                            } else if (el.tagName === 'PRE' || el.tagName === 'CODE') {
+                                el.style.backgroundColor = '#f8fafc';
+                                el.style.color = '#0f172a';
+                                el.style.borderColor = '#e2e8f0';
+                                el.style.padding = '12px';
+                                el.style.borderRadius = '6px';
+                            } else if (el.tagName === 'LI') {
+                                el.style.color = '#374151';
+                                el.style.marginBottom = '8px';
+                                el.style.lineHeight = '1.6';
+                            } else {
+                                el.style.color = '#374151';
+                            }
+                        });
+                    }
+                }
+            });
+            const imgData = canvas.toDataURL('image/jpeg', 0.75); // Comprimir la imagen al 75% de calidad (reduce el peso un 85% sin perder nitidez)
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            
+            const imgWidth = 195; // Ancho casi completo para texto grande y legible
+            const marginX = 7.5;  // Margen lateral mínimo de 7.5mm
+            const marginY = 10;   // Margen superior inicial de 10mm
+            const bottomMargin = 15; // Margen inferior real de 15mm
+            const visibleHeight = 297 - marginY - bottomMargin; // 272mm de altura útil real de contenido
+            const overlapCorrection = 11; // Corrección exacta de 11mm para eliminar la repetición de las 3 líneas
+            
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            let heightLeft = imgHeight;
+            let position = marginY;
+
+            // Página 1
+            pdf.addImage(imgData, 'JPEG', marginX, position, imgWidth, imgHeight, undefined, 'FAST');
+            
+            // Máscara blanca para forzar un margen inferior limpio de 15mm
+            pdf.setFillColor(255, 255, 255);
+            pdf.rect(0, 297 - bottomMargin, 210, bottomMargin, 'F');
+            
+            heightLeft -= visibleHeight;
+
+            while (heightLeft > 0) {
+                // Desplazar la imagen hacia arriba un extra de 11mm para saltarse las líneas repetidas
+                position = marginY - (imgHeight - heightLeft) - overlapCorrection; 
+                pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', marginX, position, imgWidth, imgHeight, undefined, 'FAST');
+                
+                // Aplicar máscara blanca al final de cada página adicional
+                pdf.setFillColor(255, 255, 255);
+                pdf.rect(0, 297 - bottomMargin, 210, bottomMargin, 'F');
+                
+                heightLeft -= (visibleHeight + overlapCorrection);
+            }
+            
+            const pdfBlob = pdf.output('blob');
+            const filePath = `user_${userId}/${Date.now()}_documentacion.pdf`;
+
+            // Subir a la sección de Storage de Supabase
+            const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                .from('documentos_pdf')
+                .upload(filePath, pdfBlob, {
+                    contentType: 'application/pdf',
+                    upsert: true
+                });
+
+            if (uploadError) {
+                throw new Error('Error al subir al Storage de Supabase (crea el bucket "documentos_pdf" en tu consola de Supabase primero): ' + uploadError.message);
+            }
+
+            // Obtener la URL pública del PDF subido
+            const { data: publicUrlData } = supabaseClient.storage
+                .from('documentos_pdf')
+                .getPublicUrl(filePath);
+
+            pdfUrl = publicUrlData.publicUrl;
+        }
+
+        // Generar contenido en base a los resultados actuales
+        const contenido = {
+            documentation: currentResults.documentation || '',
+            schema: currentResults.schema || null,
+            anomalies: currentResults.schema ? analyzeAnomalies(currentResults.schema) : null,
+            diagramSvg: document.querySelector('#mermaidDiagram svg') ? new XMLSerializer().serializeToString(document.querySelector('#mermaidDiagram svg')) : '',
+            pdfUrl: pdfUrl
+        };
+
+        const { data, error } = await supabaseClient.from('documentos').insert([
+            {
+                usuario_id: userId,
+                nombre: nombre.trim(),
+                acceso: 'Personal',
+                contenido: contenido
+            }
+        ]);
+
+        if (error) throw error;
+
+        alert('¡Documentación y PDF guardados y subidos con éxito en Supabase!');
+    } catch (err) {
+        console.error('Error al guardar en Supabase:', err);
+        alert('Error: ' + err.message);
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
     }
 }

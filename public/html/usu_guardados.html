@@ -4,8 +4,22 @@
     <meta charset="UTF-8">
     <title>DataScript AI - Documentos guardados</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/public/css/usu_panel.css">
+    <link rel="stylesheet" href="../css/usu_panel.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+    if (!sessionStorage.getItem('ds_logged')) {
+        window.location.replace('/');
+    }
+    window.addEventListener('pageshow', function (event) {
+        if (!sessionStorage.getItem('ds_logged')) {
+            window.location.replace('/');
+        }
+    });
+    function logoutSession() {
+        sessionStorage.clear();
+        window.location.replace('/');
+    }
+    </script>
 </head>
 <body>
 <div class="dashboard-wrapper">
@@ -14,7 +28,7 @@
         <a href="usu_panel.html" class="menu-item">Dashboard</a>
         <a href="usu_generar.html" class="menu-item">Generar documento</a>
         <a href="usu_guardados.html" class="menu-item active">Documentos guardados</a>
-        <div class="menu-item logout" id="logoutBtn">Cerrar Sesión</div>
+        <div class="menu-item logout" id="logoutBtn" onclick="logoutSession()">Cerrar Sesión</div>
     </aside>
     <main class="content">
         <h1>Documentos guardados</h1>

@@ -42,5 +42,13 @@ async function actualizarDashboard() {
 }
 
 document.getElementById('verGuardadosLink').addEventListener('click', () => window.location.href = 'usu_guardados.html');
-document.getElementById('logoutBtn').addEventListener('click', async () => { await supabase.auth.signOut(); sessionStorage.clear(); window.location.href = '../index.html'; });
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+    try {
+        await supabase.auth.signOut();
+    } catch (err) {
+        console.error('Error signing out:', err);
+    }
+    sessionStorage.clear();
+    window.location.href = '/';
+});
 actualizarDashboard();
