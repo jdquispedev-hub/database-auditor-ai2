@@ -593,11 +593,12 @@ app.post('/analyze-python', upload.single('file'), async (req, res) => {
         const filePath = req.file.path;
         const fileExtension = path.extname(req.file.originalname).toLowerCase();
         
-        // Validar que Python esté instalado
+        // Validar que Python esté instalado (dinámico para Windows/Linux)
         const { spawn } = require('child_process');
+        const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
         
         // Llamar al script Python
-        const pythonProcess = spawn('python', ['python_analyzer/main.py', '--file', filePath], {
+        const pythonProcess = spawn(pythonCmd, ['python_analyzer/main.py', '--file', filePath], {
             cwd: __dirname,
             stdio: ['pipe', 'pipe', 'pipe']
         });
