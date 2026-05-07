@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
             sessionStorage.setItem('ds_logged', 'true');
             sessionStorage.setItem('ds_user', data.user.id);
             //sessionStorage.setItem('ds_email', data.user.email);
-            window.location.href = 'dashboard.php?user_id=' + data.user.id;
+            window.location.href = 'dash.php?user_id=' + data.user.id;
         } catch (err) {
             console.error(err);
             alert('Error al iniciar sesión: ' + err.message);
