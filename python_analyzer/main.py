@@ -4,6 +4,11 @@ import sys
 import io
 import warnings
 
+# Asegurar que el directorio de este script esté en el sys.path para importaciones correctas
+script_dir = os.path.dirname(os.path.abspath(__file__))
+if script_dir not in sys.path:
+    sys.path.insert(0, script_dir)
+
 # Forzar salida en UTF-8 para evitar problemas de caracteres () en Windows Node.js
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
