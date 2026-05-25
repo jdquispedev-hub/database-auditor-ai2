@@ -1,0 +1,41 @@
+/* ==========================================================================
+   DataScript AI - Design Tokens (Pencil Design System)
+   ========================================================================== */
+
+:root {
+    --background: #111111;
+    --foreground: #FFFFFF;
+    --card: #1A1A1A;
+    --card-foreground: #FFFFFF;
+    --primary: #FF8400;
+    --primary-foreground: #111111;
+    --secondary: #2E2E2E;
+    --secondary-foreground: #FFFFFF;
+    --muted: #2E2E2E;
+    --muted-foreground: #B8B9B6;
+    --border: #2E2E2E;
+    --input: #2E2E2E;
+    --ring: #666666;
+    --destructive: #FF5C33;
+    --destructive-foreground: #FFFFFF;
+
+    --sidebar: #18181b;
+    --sidebar-foreground: #fafafa;
+    --sidebar-accent: #2a2a30;
+    --sidebar-accent-foreground: #fafafa;
+    --sidebar-border: #ffffff1a;
+
+    --success: #22c55e;
+    --success-foreground: #22c55e;
+    --warning: #f59e0b;
+    --warning-foreground: #fbbf24;
+    --error: #FF5C33;
+    --error-foreground: #ef4444;
+
+    --font-primary: 'JetBrains Mono', 'Fira Code', monospace;
+    --font-secondary: 'Geist', 'Inter', -apple-system, sans-serif;
+
+    --radius-m: 16px;
+    --radius-pill: 999px;
+    --radius-sm: 8px;
+}

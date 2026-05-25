@@ -1,6 +1,8 @@
 /* ==========================================================================
-   DataScript AI - Shared Sidebar Stylesheet (Premium Design System)
+   DataScript AI - Shared Sidebar Stylesheet (Pencil Design System)
    ========================================================================== */
+
+@import url('./theme.css');
 
 app-sidebar {
     display: block;
@@ -11,29 +13,26 @@ app-sidebar {
 }
 
 .sidebar {
-    width: 270px;
-    background: #111827;
-    border-right: 1px solid #2d3a5e;
+    width: 260px;
+    background: var(--sidebar);
+    border-right: 1px solid var(--sidebar-border);
     display: flex;
     flex-direction: column;
     height: 100%;
     padding-bottom: 12px;
     box-sizing: border-box;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-secondary);
 }
 
 .logo-sidebar {
-    font-size: 1.4rem;
+    font-size: 1.3rem;
+    font-family: var(--font-primary);
     font-weight: 700;
     text-align: center;
     padding: 24px 16px;
-    margin-top: 0;
     line-height: 1.2;
-    background: linear-gradient(135deg, #a78bfa, #5e6ad2);
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-    border-bottom: 1px solid #2d3a5e;
+    color: var(--sidebar-foreground);
+    border-bottom: 1px solid var(--sidebar-border);
     letter-spacing: -0.3px;
     margin-bottom: 16px;
     user-select: none;
@@ -41,22 +40,21 @@ app-sidebar {
 
 .menu-item {
     padding: 12px 20px;
-    margin: 4px 14px;
-    border-radius: 12px;
+    margin: 2px 14px;
+    border-radius: var(--radius-pill);
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     font-weight: 500;
-    color: #cbd5e1;
+    color: var(--muted-foreground);
     text-decoration: none;
     display: flex;
     align-items: center;
     gap: 12px;
     box-sizing: border-box;
-    font-size: 15px;
+    font-size: 14px;
     line-height: 1.2;
 }
 
-/* Icon styles in menu item */
 .menu-item .menu-icon-svg {
     width: 20px;
     height: 20px;
@@ -74,8 +72,8 @@ app-sidebar {
 }
 
 .menu-item:hover {
-    background: #1e293b;
-    color: #ffffff;
+    background: var(--sidebar-accent);
+    color: var(--sidebar-foreground);
 }
 
 .menu-item:hover .menu-icon-svg {
@@ -83,26 +81,23 @@ app-sidebar {
 }
 
 .menu-item.active {
-    background: #5e6ad2;
-    color: #ffffff;
-    box-shadow: 0 4px 12px rgba(94, 106, 210, 0.3);
+    background: var(--primary);
+    color: var(--primary-foreground);
+    box-shadow: 0 4px 12px rgba(255, 132, 0, 0.3);
     font-weight: 600;
 }
 
 .menu-item.active .menu-icon-svg {
-    stroke: #ffffff;
+    stroke: var(--primary-foreground);
 }
 
-/* Logout button specific styles */
 .menu-item.logout {
     margin-top: auto;
     margin-bottom: 12px;
-    color: #f87171;
-    border: 1px dashed rgba(248, 113, 113, 0.2);
+    color: var(--destructive);
 }
 
 .menu-item.logout:hover {
-    background: rgba(239, 68, 68, 0.15);
-    color: #fca5a5;
-    border-color: rgba(248, 113, 113, 0.4);
+    background: rgba(255, 92, 51, 0.15);
+    color: var(--destructive);
 }

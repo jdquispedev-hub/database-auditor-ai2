@@ -2,16 +2,18 @@
    DataScript AI - Landing Page Stylesheet (Premium Design System)
    ========================================================================== */
 
+@import url('./theme.css');
+
 :root {
-    --bg-dark: #0a0e1a;
-    --bg-panel: rgba(17, 24, 39, 0.85);
-    --border-color: #2d3a5e;
-    --text-main: #eef2ff;
-    --text-muted: #9ca3af;
-    --accent: #5e6ad2;
-    --accent-hover: #7b88ff;
-    --accent-gradient: linear-gradient(135deg, #a78bfa, #5e6ad2);
-    --font-family: 'Outfit', sans-serif;
+    --bg-dark: var(--background);
+    --bg-panel: var(--card);
+    --border-color: var(--border);
+    --text-main: var(--foreground);
+    --text-muted: var(--muted-foreground);
+    --accent: var(--primary);
+    --accent-hover: #ff9f33;
+    --accent-gradient: linear-gradient(135deg, #ff9f33, #FF8400);
+    --font-family: var(--font-secondary);
 }
 
 * {
@@ -51,7 +53,7 @@ body {
 .orb-2 {
     width: 600px;
     height: 600px;
-    background: radial-gradient(circle, #9d4edd 0%, transparent 70%);
+    background: radial-gradient(circle, #ff6600 0%, transparent 70%);
     bottom: -200px;
     right: -200px;
     animation-delay: -7s;
@@ -96,13 +98,13 @@ body {
     font-weight: 600;
     text-decoration: none;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 15px rgba(94, 106, 210, 0.3);
+    box-shadow: 0 4px 15px rgba(255, 132, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .btn-login:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(94, 106, 210, 0.5);
+    box-shadow: 0 8px 25px rgba(255, 132, 0, 0.5);
     border-color: rgba(255, 255, 255, 0.2);
 }
 
@@ -195,8 +197,8 @@ body {
     width: 50%; /* JS will control this */
     height: 100%;
     background: #1e1b4b;
-    border-left: 2px solid #a78bfa;
-    box-shadow: -5px 0 25px rgba(167, 139, 250, 0.25);
+    border-left: 2px solid var(--accent);
+    box-shadow: -5px 0 25px rgba(255, 132, 0, 0.25);
     overflow: hidden;
     z-index: 10;
 }
@@ -218,7 +220,7 @@ body {
     bottom: 0;
     left: 50%; /* JS will control this */
     width: 2px;
-    background: #a78bfa;
+    background: var(--accent);
     z-index: 20;
     pointer-events: none;
 }
@@ -230,8 +232,8 @@ body {
     transform: translate(-50%, -50%);
     width: 32px;
     height: 32px;
-    background: #5e6ad2;
-    border: 2px solid #a78bfa;
+    background: var(--accent);
+    border: 2px solid var(--accent);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -297,7 +299,7 @@ body {
 }
 
 .mockup-sql-before span.kw { color: #4b5563; }
-.mockup-sql-before span.table { color: #9ca3af; }
+.mockup-sql-before span.table { color: var(--text-muted); }
 
 /* Styled ER Diagram Mockup (After) */
 .mockup-er-after {
@@ -310,8 +312,8 @@ body {
 }
 
 .mockup-node {
-    background: rgba(94, 106, 210, 0.2);
-    border: 1.5px solid #a78bfa;
+    background: rgba(255, 132, 0, 0.2);
+    border: 1.5px solid var(--accent);
     border-radius: 8px;
     padding: 8px 14px;
     width: 140px;
@@ -319,12 +321,12 @@ body {
     font-size: 0.85rem;
     font-weight: 600;
     color: #ffffff;
-    box-shadow: 0 4px 10px rgba(167, 139, 250, 0.15);
+    box-shadow: 0 4px 10px rgba(255, 132, 0, 0.15);
 }
 
 .mockup-node-pk {
     font-size: 0.7rem;
-    color: #a78bfa;
+    color: var(--accent);
     font-family: monospace;
     margin-top: 4px;
 }
@@ -332,7 +334,7 @@ body {
 .mockup-line {
     width: 2px;
     height: 35px;
-    background: dashed #a78bfa;
+    background: dashed var(--accent);
     position: relative;
 }
 
@@ -344,7 +346,7 @@ body {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #a78bfa;
+    background: var(--accent);
 }
 
 .mockup-line::before { top: 0; }
@@ -538,7 +540,7 @@ body {
 .community-card:hover {
     transform: translateY(-5px);
     border-color: var(--accent);
-    box-shadow: 0 10px 25px rgba(94, 106, 210, 0.15);
+    box-shadow: 0 10px 25px rgba(255, 132, 0, 0.15);
 }
 
 .community-card:hover::before {
@@ -551,7 +553,7 @@ body {
     border-radius: 50%;
     padding: 3px;
     background: var(--accent-gradient);
-    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.2);
+    box-shadow: 0 4px 12px rgba(255, 132, 0, 0.2);
     position: relative;
 }
 
@@ -560,8 +562,8 @@ body {
     height: 100%;
     border-radius: 50%;
     object-fit: cover;
-    border: 2px solid #111827;
-    background: #1f2937;
+    border: 2px solid var(--border-color);
+    background: var(--bg-dark);
     transition: transform 0.3s;
 }
 
@@ -587,9 +589,9 @@ body {
 }
 
 .community-badge {
-    background: rgba(94, 106, 210, 0.15);
-    color: #a78bfa;
-    border: 1px solid rgba(167, 139, 250, 0.25);
+    background: rgba(255, 132, 0, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(255, 132, 0, 0.25);
     padding: 4px 12px;
     border-radius: 12px;
     font-size: 0.7rem;
@@ -607,13 +609,13 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: rgba(94, 106, 210, 0.12);
-    border: 1px solid rgba(167, 139, 250, 0.25);
+    background: rgba(255, 132, 0, 0.12);
+    border: 1px solid rgba(255, 132, 0, 0.25);
     padding: 6px 18px;
     border-radius: 50px;
     font-size: 0.8rem;
     font-weight: 600;
-    color: #a78bfa;
+    color: var(--accent);
     margin-bottom: 24px;
     letter-spacing: 0.3px;
     animation: fadeInDown 0.8s ease-out;
@@ -660,13 +662,13 @@ body {
     font-weight: 600;
     text-decoration: none;
     transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 20px rgba(94, 106, 210, 0.35);
+    box-shadow: 0 4px 20px rgba(255, 132, 0, 0.35);
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .btn-hero-primary:hover {
     transform: translateY(-3px) scale(1.03);
-    box-shadow: 0 8px 30px rgba(94, 106, 210, 0.55);
+    box-shadow: 0 8px 30px rgba(255, 132, 0, 0.55);
 }
 
 .btn-hero-primary svg {
@@ -694,7 +696,7 @@ body {
 .btn-hero-secondary:hover {
     color: #ffffff;
     border-color: var(--accent);
-    background: rgba(94, 106, 210, 0.08);
+    background: rgba(255, 132, 0, 0.08);
 }
 
 /* Hero Stats */
@@ -835,7 +837,7 @@ body {
 .step-card:hover {
     border-color: var(--accent);
     transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(94, 106, 210, 0.15);
+    box-shadow: 0 10px 25px rgba(255, 132, 0, 0.15);
 }
 
 .step-number {
@@ -853,7 +855,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 12px rgba(94, 106, 210, 0.35);
+    box-shadow: 0 4px 12px rgba(255, 132, 0, 0.35);
 }
 
 .step-icon {
@@ -897,7 +899,7 @@ body {
     width: 500px;
     height: 500px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(94, 106, 210, 0.15) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(255, 132, 0, 0.15) 0%, transparent 70%);
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);

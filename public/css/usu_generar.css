@@ -1,18 +1,20 @@
+@import url('./theme.css');
+
 :root {
-    --bg-dark: #0f111a;
-    --bg-panel: rgba(20, 24, 39, 0.6);
-    --bg-panel-inner: rgba(30, 35, 55, 0.5);
-    --border-color: rgba(255, 255, 255, 0.1);
-    --border-hover: rgba(100, 150, 255, 0.4);
-    --text-main: #f0f4ff;
-    --text-muted: #9ba1b6;
-    --accent: #5e6ad2;
-    --accent-hover: #7b88ff;
-    --accent-glow: rgba(94, 106, 210, 0.5);
-    --error: #ff5252;
-    --error-bg: rgba(255, 82, 82, 0.1);
-    --success: #4caf50;
-    --font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+    --bg-dark: var(--background);
+    --bg-panel: var(--card);
+    --bg-panel-inner: rgba(30, 30, 30, 0.5);
+    --border-color: var(--border);
+    --border-hover: rgba(255, 132, 0, 0.4);
+    --text-main: var(--foreground);
+    --text-muted: var(--muted-foreground);
+    --accent: var(--primary);
+    --accent-hover: #ff9f33;
+    --accent-glow: rgba(255, 132, 0, 0.5);
+    --error: var(--destructive);
+    --error-bg: rgba(255, 92, 51, 0.1);
+    --success: #22c55e;
+    --font-family: var(--font-secondary);
 }
 
 * {
@@ -31,7 +33,6 @@ body {
     line-height: 1.6;
 }
 
-/* Dynamic Orbs Background */
 .bg-orb {
     position: fixed;
     border-radius: 50%;
@@ -52,7 +53,7 @@ body {
 .orb-2 {
     width: 500px;
     height: 500px;
-    background: radial-gradient(circle, #9d4edd 0%, transparent 70%);
+    background: radial-gradient(circle, #ff6600 0%, transparent 70%);
     bottom: -150px;
     right: -150px;
     animation-delay: -5s;
@@ -63,7 +64,6 @@ body {
     100% { transform: translate(50px, 50px) scale(1.1); }
 }
 
-/* Layout Elements */
 .container {
     max-width: 1000px;
     margin: 40px auto;
@@ -82,11 +82,10 @@ body {
 .glass-panel-inner {
     background: var(--bg-panel-inner);
     border: 1px solid var(--border-color);
-    border-radius: 16px;
+    border-radius: var(--radius-m);
     padding: 24px;
 }
 
-/* Header */
 .header {
     text-align: center;
     margin-bottom: 40px;
@@ -102,16 +101,17 @@ body {
 
 .header h1 {
     font-size: 2.5rem;
+    font-family: var(--font-primary);
     font-weight: 700;
     letter-spacing: -0.5px;
     color: var(--text-main);
 }
 
 .header h1 span {
-    color: transparent;
-    background: linear-gradient(90deg, var(--accent-hover), #e0aaff);
+    background: linear-gradient(90deg, var(--accent-hover), #ffb366);
     -webkit-background-clip: text;
     background-clip: text;
+    color: transparent;
 }
 
 .header p {
@@ -121,7 +121,6 @@ body {
     margin: 0 auto;
 }
 
-/* Upload Section */
 .upload-section {
     display: flex;
     flex-direction: column;
@@ -129,8 +128,8 @@ body {
 }
 
 .upload-area {
-    border: 2px dashed var(--border-color);
-    border-radius: 20px;
+    border: 2px dashed var(--accent);
+    border-radius: var(--radius-m);
     padding: 50px 30px;
     text-align: center;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -139,8 +138,8 @@ body {
 }
 
 .upload-area:hover, .upload-area.dragover {
-    border-color: var(--accent);
-    background: rgba(94, 106, 210, 0.05);
+    border-color: var(--accent-hover);
+    background: rgba(255, 132, 0, 0.05);
     transform: translateY(-2px);
 }
 
@@ -151,7 +150,7 @@ body {
 .upload-icon-wrapper {
     width: 64px;
     height: 64px;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 132, 0, 0.1);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -163,7 +162,7 @@ body {
 
 .upload-area:hover .upload-icon-wrapper {
     transform: scale(1.1);
-    background: rgba(94, 106, 210, 0.15);
+    background: rgba(255, 132, 0, 0.15);
 }
 
 .upload-area h3 {
@@ -178,11 +177,11 @@ body {
 }
 
 .select-btn {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--border-color);
+    background: rgba(255, 132, 0, 0.15);
+    border: 1px solid var(--accent);
     color: var(--text-main);
     padding: 10px 24px;
-    border-radius: 8px;
+    border-radius: var(--radius-pill);
     font-family: var(--font-family);
     font-weight: 500;
     cursor: pointer;
@@ -190,11 +189,10 @@ body {
 }
 
 .select-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: var(--border-hover);
+    background: rgba(255, 132, 0, 0.25);
+    border-color: var(--accent-hover);
 }
 
-/* File Info */
 .file-info {
     animation: slideDown 0.3s ease;
 }
@@ -207,7 +205,7 @@ body {
 
 .file-icon {
     color: var(--accent);
-    background: rgba(94, 106, 210, 0.1);
+    background: rgba(255, 132, 0, 0.1);
     padding: 12px;
     border-radius: 12px;
 }
@@ -234,7 +232,7 @@ body {
     color: var(--text-muted);
     cursor: pointer;
     padding: 8px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     transition: all 0.2s;
     display: flex;
     align-items: center;
@@ -246,14 +244,12 @@ body {
     color: var(--error);
 }
 
-/* Analyze Action */
 .action-container {
     display: flex;
     justify-content: center;
     margin-top: 10px;
 }
 
-/* Analysis Buttons Container */
 .analysis-buttons {
     display: flex;
     gap: 20px;
@@ -263,12 +259,13 @@ body {
 }
 
 .analyze-btn {
-    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-    color: white;
+    background: var(--primary);
+    color: var(--primary-foreground);
     border: none;
     padding: 15px 25px;
-    border-radius: 12px;
+    border-radius: var(--radius-pill);
     font-size: 15px;
+    font-family: var(--font-primary);
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -282,7 +279,7 @@ body {
 
 .analyze-btn:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(94, 106, 210, 0.3);
+    box-shadow: 0 10px 25px rgba(255, 132, 0, 0.3);
 }
 
 .analyze-btn:disabled {
@@ -291,19 +288,20 @@ body {
 }
 
 .ai-btn {
-    background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+    background: var(--primary);
 }
 
 .ai-btn:hover:not(:disabled) {
-    box-shadow: 0 10px 25px rgba(255, 107, 107, 0.3);
+    box-shadow: 0 10px 25px rgba(255, 132, 0, 0.3);
 }
 
 .python-btn {
-    background: linear-gradient(135deg, #4caf50, #66bb6a);
+    background: var(--secondary);
+    color: var(--secondary-foreground);
 }
 
 .python-btn:hover:not(:disabled) {
-    box-shadow: 0 10px 25px rgba(76, 175, 80, 0.3);
+    box-shadow: 0 10px 25px rgba(255, 132, 0, 0.2);
 }
 
 .btn-icon {
@@ -314,7 +312,6 @@ body {
     font-weight: 600;
 }
 
-/* Analysis Info Cards */
 .analysis-info {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -325,8 +322,8 @@ body {
 .info-card {
     background: var(--bg-panel-inner);
     border: 1px solid var(--border-color);
-    border-radius: 2px;
-    padding: 10px;
+    border-radius: var(--radius-sm);
+    padding: 16px;
     text-align: center;
     transition: all 0.3s ease;
 }
@@ -355,25 +352,24 @@ body {
 }
 
 .ai-info {
-    border-left: 3px solid #ff6b6b;
+    border-left: 3px solid var(--primary);
 }
 
 .python-info {
-    border-left: 3px solid #4caf50;
+    border-left: 3px solid var(--secondary);
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
     .analysis-buttons {
         flex-direction: column;
         align-items: center;
     }
-    
+
     .analyze-btn {
         width: 100%;
         max-width: 300px;
     }
-    
+
     .analysis-info {
         grid-template-columns: 1fr;
     }
@@ -411,7 +407,7 @@ body {
     display: flex;
     background: rgba(0, 0, 0, 0.2);
     padding: 4px;
-    border-radius: 10px;
+    border-radius: var(--radius-pill);
     border: 1px solid var(--border-color);
 }
 
@@ -420,7 +416,7 @@ body {
     border: none;
     color: var(--text-muted);
     padding: 8px 16px;
-    border-radius: 6px;
+    border-radius: var(--radius-pill);
     font-family: var(--font-family);
     font-weight: 500;
     cursor: pointer;
@@ -432,8 +428,8 @@ body {
 }
 
 .tab-btn.active {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-main);
+    background: var(--primary);
+    color: var(--primary-foreground);
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
@@ -456,7 +452,7 @@ body {
     margin-top: 1.5em;
     margin-bottom: 0.5em;
     font-weight: 600;
-    color: var(--accent-hover);
+    color: var(--foreground);
 }
 
 .markdown-body h1 {
@@ -488,15 +484,15 @@ body {
     background: rgba(0,0,0,0.3);
     padding: 0.2em 0.4em;
     border-radius: 4px;
-    font-family: monospace;
+    font-family: var(--font-primary);
     font-size: 0.9em;
-    color: #e0aaff;
+    color: var(--primary);
 }
 
 .markdown-body pre {
     background: rgba(0,0,0,0.3);
     padding: 1em;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     overflow-x: auto;
     margin-bottom: 1em;
     border: 1px solid var(--border-color);
@@ -523,7 +519,7 @@ body {
 .markdown-body th {
     background: rgba(255,255,255,0.05);
     font-weight: 600;
-    color: var(--accent-hover);
+    color: var(--foreground);
 }
 
 .markdown-body tr:hover {
@@ -541,7 +537,7 @@ body {
 .stat-card {
     background: rgba(0,0,0,0.2);
     padding: 16px;
-    border-radius: 12px;
+    border-radius: var(--radius-m);
     border: 1px solid var(--border-color);
     text-align: center;
 }
@@ -549,18 +545,20 @@ body {
 .stat-card h4 {
     color: var(--text-muted);
     font-size: 0.9rem;
+    font-family: var(--font-primary);
     font-weight: 500;
+    text-transform: uppercase;
 }
 
 .stat-card p {
     font-size: 1.8rem;
     font-weight: 700;
-    color: var(--accent-hover);
+    color: var(--accent);
 }
 
 .table-card {
     background: rgba(0,0,0,0.2);
-    border-radius: 12px;
+    border-radius: var(--radius-m);
     padding: 20px;
     margin-bottom: 16px;
     border: 1px solid var(--border-color);
@@ -568,8 +566,9 @@ body {
 
 .table-name {
     font-size: 1.2rem;
+    font-family: var(--font-primary);
     font-weight: 600;
-    color: var(--accent-hover);
+    color: var(--foreground);
     margin-bottom: 16px;
     display: flex;
     align-items: center;
@@ -582,7 +581,7 @@ body {
     gap: 12px;
     padding: 10px 12px;
     background: rgba(255,255,255,0.03);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     margin-bottom: 8px;
     align-items: center;
 }
@@ -593,7 +592,7 @@ body {
 
 .column-type {
     color: var(--text-muted);
-    font-family: monospace;
+    font-family: var(--font-primary);
     font-size: 0.9rem;
 }
 
@@ -604,15 +603,15 @@ body {
 
 .column-badge {
     padding: 2px 8px;
-    border-radius: 12px;
+    border-radius: var(--radius-pill);
     font-size: 0.7rem;
     font-weight: 600;
     letter-spacing: 0.5px;
 }
 
-.badge-primary { background: rgba(157, 78, 221, 0.2); color: #e0aaff; }
+.badge-primary { background: rgba(255, 132, 0, 0.2); color: var(--primary); }
 .badge-nullable { background: rgba(255, 167, 38, 0.2); color: #ffcc80; }
-.badge-auto { background: rgba(76, 175, 80, 0.2); color: #a5d6a7; }
+.badge-auto { background: rgba(34, 197, 94, 0.2); color: #a5d6a7; }
 
 /* Error Section */
 .error-section {
@@ -625,7 +624,7 @@ body {
     align-items: center;
     gap: 20px;
     background: var(--error-bg);
-    border-color: rgba(255, 82, 82, 0.3);
+    border-color: rgba(255, 92, 51, 0.3);
 }
 
 .error-icon {
@@ -646,18 +645,18 @@ body {
 }
 
 .retry-btn {
-    background: rgba(255, 82, 82, 0.15);
-    color: #ff8a80;
-    border: 1px solid rgba(255, 82, 82, 0.3);
+    background: rgba(255, 92, 51, 0.15);
+    color: var(--error);
+    border: 1px solid rgba(255, 92, 51, 0.3);
     padding: 8px 16px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font-family: var(--font-family);
     transition: all 0.2s;
 }
 
 .retry-btn:hover {
-    background: rgba(255, 82, 82, 0.25);
+    background: rgba(255, 92, 51, 0.25);
     color: #fff;
 }
 
@@ -675,7 +674,7 @@ body {
 .diagram-controls .action-btn {
     padding: 12px 24px;
     min-width: 170px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
 }
 
 
@@ -697,7 +696,7 @@ body {
     border: 1px solid var(--border-color);
     color: var(--text-main);
     padding: 8px 16px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -709,7 +708,7 @@ body {
 }
 
 .action-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 132, 0, 0.15);
     border-color: var(--accent);
 }
 
@@ -741,7 +740,7 @@ body {
     justify-content: flex-start;
     padding: 16px;
     background: rgba(0, 0, 0, 0.2);
-    border-radius: 12px;
+    border-radius: var(--radius-m);
     border: 1px solid var(--border-color);
 }
 
@@ -749,14 +748,14 @@ body {
     flex: 1 1 auto;
     min-width: 170px;
     padding: 12px 24px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
 }
 
 
 .diagram-container {
     padding: 20px;
     background: rgba(0, 0, 0, 0.2);
-    border-radius: 12px;
+    border-radius: var(--radius-m);
     min-height: 400px;
     display: flex;
     justify-content: center;
@@ -800,10 +799,10 @@ body {
 
 .format-select {
     background: rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--accent);
     color: var(--text-main);
     padding: 10px 16px;
-    border-radius: 8px;
+    border-radius: var(--radius-pill);
     font-family: var(--font-family);
     font-size: 1rem;
     flex: 1;
@@ -812,11 +811,11 @@ body {
 
 .convert-btn {
     background: var(--accent);
-    color: white;
+    color: var(--primary-foreground);
     border: none;
     padding: 12px 24px;
-    border-radius: 8px;
-    font-family: var(--font-family);
+    border-radius: var(--radius-pill);
+    font-family: var(--font-primary);
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
@@ -825,7 +824,7 @@ body {
 .converter-controls .action-btn {
     padding: 12px 24px;
     min-width: 170px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
 }
 
 #downloadConvertedBtn:disabled {
@@ -846,16 +845,16 @@ body {
 .conversion-result {
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    border-radius: var(--radius-m);
     padding: 24px;
     min-height: 300px;
     position: relative;
 }
 
 .converted-code {
-    font-family: 'Fira Code', 'Cascadia Code', monospace;
+    font-family: var(--font-primary);
     font-size: 0.95rem;
-    color: #e0aaff;
+    color: var(--accent);
     white-space: pre-wrap;
     overflow-x: auto;
 }
@@ -875,7 +874,7 @@ body {
     margin: 24px 0;
     background: rgba(255, 255, 255, 0.03);
     padding: 20px;
-    border-radius: 16px;
+    border-radius: var(--radius-m);
     border: 1px solid var(--border-color);
 }
 
@@ -899,7 +898,7 @@ body {
 
 .audit-bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--accent), #9d4edd);
+    background: linear-gradient(90deg, var(--accent), #ff6600);
     border-radius: 6px;
     box-shadow: 0 0 15px var(--accent-glow);
     width: 0;
@@ -990,21 +989,22 @@ body {
     font-size: 0.85rem;
     color: var(--text-muted);
     text-transform: uppercase;
+    font-family: var(--font-primary);
     letter-spacing: 0.5px;
 }
 
 .stat-value {
     font-size: 2rem;
     font-weight: 700;
-    color: var(--accent-hover);
+    color: var(--accent);
 }
 
 .stat-value.warning {
-    color: #ffaa44;
+    color: var(--warning-foreground);
 }
 
 .stat-value.success {
-    color: #4caf50;
+    color: var(--success);
 }
 
 .anomalies-list {
@@ -1015,7 +1015,7 @@ body {
 
 .anomaly-card {
     background: rgba(0, 0, 0, 0.3);
-    border-radius: 16px;
+    border-radius: var(--radius-m);
     padding: 20px;
     border-left: 4px solid var(--error);
     transition: all 0.2s;
@@ -1043,20 +1043,20 @@ body {
 }
 
 .badge-issue {
-    background: rgba(255, 82, 82, 0.2);
-    color: #ff8a80;
+    background: rgba(255, 92, 51, 0.2);
+    color: var(--error);
     padding: 4px 12px;
-    border-radius: 20px;
+    border-radius: var(--radius-pill);
     font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.3px;
 }
 
 .badge-clean {
-    background: rgba(76, 175, 80, 0.2);
+    background: rgba(34, 197, 94, 0.2);
     color: #a5d6a7;
     padding: 4px 12px;
-    border-radius: 20px;
+    border-radius: var(--radius-pill);
     font-size: 0.75rem;
     font-weight: 600;
 }
@@ -1118,7 +1118,7 @@ body {
 
 .anomaly-table th {
     background: rgba(255, 255, 255, 0.05);
-    color: var(--accent-hover);
+    color: var(--foreground);
     font-weight: 600;
 }
 
@@ -1127,41 +1127,40 @@ body {
 }
 
 .anomaly-card.clean .clean-message {
-    background: rgba(76, 175, 80, 0.1);
+    background: rgba(34, 197, 94, 0.1);
     padding: 12px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     margin-top: 8px;
 }
 
 /* Responsive: Convertir tablas del diccionario de datos en tarjetas apiladas en móviles */
 @media (max-width: 768px) {
-    /* Para las tablas dentro del contenido markdown (Diccionario de Datos) */
     .markdown-body table {
         display: block;
         width: 100%;
         border: none;
     }
-    
+
     .markdown-body thead {
-        display: none; /* Ocultar cabecera original */
+        display: none;
     }
-    
+
     .markdown-body tbody {
         display: flex;
         flex-direction: column;
         gap: 16px;
     }
-    
+
     .markdown-body tr {
         display: flex;
         flex-direction: column;
         background: rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
+        border-radius: var(--radius-m);
         padding: 12px;
         margin-bottom: 8px;
         border: 1px solid var(--border-color);
     }
-    
+
     .markdown-body td {
         display: flex;
         justify-content: space-between;
@@ -1171,51 +1170,48 @@ body {
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         text-align: left;
     }
-    
+
     .markdown-body td:last-child {
         border-bottom: none;
     }
-    
-    /* Etiquetas para cada celda */
+
     .markdown-body td::before {
         content: attr(data-label);
         font-weight: 600;
-        color: var(--accent-hover);
+        color: var(--foreground);
         width: 35%;
         flex-shrink: 0;
     }
-    
-    /* Asegurar que el contenido de la celda se ajuste */
+
     .markdown-body td:first-child::before { content: "Campo:"; }
     .markdown-body td:nth-child(2)::before { content: "Tipo:"; }
     .markdown-body td:nth-child(3)::before { content: "Descripción:"; }
     .markdown-body td:nth-child(4)::before { content: "Observaciones:"; }
-    
-    /* Para las tablas de anomalías (que ya tienen estructura de tabla), también convertir a tarjetas si es necesario */
+
     .anomaly-table {
         display: block;
         width: 100%;
     }
-    
+
     .anomaly-table thead {
         display: none;
     }
-    
+
     .anomaly-table tbody {
         display: flex;
         flex-direction: column;
         gap: 12px;
     }
-    
+
     .anomaly-table tr {
         display: flex;
         flex-direction: column;
         background: rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
+        border-radius: var(--radius-m);
         padding: 12px;
         border: 1px solid var(--border-color);
     }
-    
+
     .anomaly-table td {
         display: flex;
         justify-content: space-between;
@@ -1224,19 +1220,19 @@ body {
         padding: 6px 0;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
-    
+
     .anomaly-table td:last-child {
         border-bottom: none;
     }
-    
+
     .anomaly-table td::before {
         content: attr(data-label);
         font-weight: 600;
-        color: var(--accent-hover);
+        color: var(--foreground);
         width: 40%;
         flex-shrink: 0;
     }
-    
+
     .anomaly-table td:first-child::before { content: "Tabla:"; }
     .anomaly-table td:last-child::before { content: "Detalle:"; }
 }
@@ -1245,33 +1241,32 @@ body {
    Tablas responsivas en móviles (formato tarjeta)
    ============================================ */
 @media (max-width: 768px) {
-    /* ----- Diccionario de Datos (tablas markdown) ----- */
     .markdown-body table {
         display: block;
         width: 100%;
         border: none;
     }
-    
+
     .markdown-body thead {
-        display: none; /* Oculta la cabecera original */
+        display: none;
     }
-    
+
     .markdown-body tbody {
         display: flex;
         flex-direction: column;
         gap: 16px;
     }
-    
+
     .markdown-body tr {
         display: flex;
         flex-direction: column;
         background: rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
+        border-radius: var(--radius-m);
         padding: 12px;
         margin-bottom: 8px;
         border: 1px solid var(--border-color);
     }
-    
+
     .markdown-body td {
         display: flex;
         justify-content: space-between;
@@ -1281,66 +1276,64 @@ body {
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         text-align: left;
     }
-    
+
     .markdown-body td:last-child {
         border-bottom: none;
     }
-    
-    /* Etiquetas fijas según la posición de la columna */
+
     .markdown-body td:first-child::before {
         content: "Campo:";
         font-weight: 600;
-        color: var(--accent-hover);
+        color: var(--foreground);
         width: 35%;
         flex-shrink: 0;
     }
     .markdown-body td:nth-child(2)::before {
         content: "Tipo:";
         font-weight: 600;
-        color: var(--accent-hover);
+        color: var(--foreground);
         width: 35%;
         flex-shrink: 0;
     }
     .markdown-body td:nth-child(3)::before {
         content: "Descripción:";
         font-weight: 600;
-        color: var(--accent-hover);
+        color: var(--foreground);
         width: 35%;
         flex-shrink: 0;
     }
     .markdown-body td:nth-child(4)::before {
         content: "Observaciones:";
         font-weight: 600;
-        color: var(--accent-hover);
+        color: var(--foreground);
         width: 35%;
         flex-shrink: 0;
     }
-    
-    /* ----- Tablas de Anomalías (2 columnas) ----- */
+
     .anomaly-table {
         display: block;
         width: 100%;
     }
-    
+
     .anomaly-table thead {
         display: none;
     }
-    
+
     .anomaly-table tbody {
         display: flex;
         flex-direction: column;
         gap: 12px;
     }
-    
+
     .anomaly-table tr {
         display: flex;
         flex-direction: column;
         background: rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
+        border-radius: var(--radius-m);
         padding: 12px;
         border: 1px solid var(--border-color);
     }
-    
+
     .anomaly-table td {
         display: flex;
         justify-content: space-between;
@@ -1349,216 +1342,49 @@ body {
         padding: 6px 0;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
-    
+
     .anomaly-table td:last-child {
         border-bottom: none;
     }
-    
+
     .anomaly-table td:first-child::before {
         content: "Tabla:";
         font-weight: 600;
-        color: var(--accent-hover);
+        color: var(--foreground);
         width: 35%;
         flex-shrink: 0;
     }
     .anomaly-table td:last-child::before {
         content: "Detalle:";
         font-weight: 600;
-        color: var(--accent-hover);
+        color: var(--foreground);
         width: 35%;
         flex-shrink: 0;
     }
 }
 
+/* Dashboard layout overrides for the generador page */
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: var(--font-family); background: var(--bg-dark); color: var(--foreground); height: 100vh; overflow: hidden; }
+.dashboard-wrapper { display: flex; height: 100vh; }
 
-
-
-/*---------------------------------------------*/
-
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family: 'Outfit', sans-serif; background: #0a0e1a; color: #eef2ff; height: 100vh; overflow: hidden; }
-        .dashboard-wrapper { display: flex; height: 100vh; }
-        /* Sidebar styles are now loaded from public/css/sidebar.css */
-
-        
-        /* Contenido principal con padding suficiente */
-        .content {
-            flex: 1;
-            padding: 32px 40px;
-            overflow-y: auto;
-        }
-        .footer {
-            margin-top: 32px;
-            padding-top: 16px;
-            border-top: 1px solid #2d3a5e;
-            text-align: center;
-            font-size: 0.75rem;
-            color: #6b7280;
-        }
-
-        /* ========== ESTILOS DEL GENERADOR (con márgenes mejorados) ========== */
-        .upload-section {
-            margin-top: 0;
-        }
-        .upload-area {
-            border: 2px dashed #5e6ad2;
-            border-radius: 24px;
-            background: rgba(0,0,0,0.2);
-            padding: 48px 32px;
-            text-align: center;
-            cursor: pointer;
-            transition: 0.3s;
-            margin-bottom: 24px;
-        }
-        .upload-area.dragover {
-            border-color: #a78bfa;
-            background: rgba(94,106,210,0.1);
-            transform: scale(1.01);
-        }
-        .upload-icon-wrapper svg {
-            width: 48px;
-            height: 48px;
-            stroke: #a78bfa;
-            margin-bottom: 16px;
-        }
-        .select-btn {
-            background: rgba(94,106,210,0.2);
-            border: 1px solid #5e6ad2;
-            color: #e2e8ff;
-            padding: 10px 24px;
-            border-radius: 40px;
-            cursor: pointer;
-        }
-        .file-info {
-            background: rgba(0,0,0,0.3);
-            border-radius: 16px;
-            padding: 16px;
-            margin: 16px 0;
-            display: flex;
-            justify-content: space-between;
-        }
-        .analyze-btn {
-            background: linear-gradient(135deg,#10b981,#34d399);
-            border: none;
-            padding: 14px 28px;
-            border-radius: 40px;
-            font-weight: 600;
-            color: white;
-            cursor: pointer;
-            margin-top: 16px;
-        }
-        .analyze-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .result-tabs {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin: 24px 0 16px;
-            border-bottom: 1px solid rgba(94,106,210,0.3);
-            padding-bottom: 8px;
-        }
-        .tab-btn {
-            background: transparent;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 40px;
-            color: #a0aec0;
-            cursor: pointer;
-        }
-        .tab-btn.active {
-            background: #5e6ad2;
-            color: white;
-        }
-        .tab-content {
-            display: none;
-            animation: fadeIn 0.3s;
-        }
-        .tab-content.active {
-            display: block;
-        }
-        .diagram-container {
-            background: rgba(0,0,0,0.2);
-            border-radius: 16px;
-            padding: 20px;
-            overflow-x: auto;
-        }
-        .anomaly-card {
-            background: rgba(0,0,0,0.25);
-            border-left: 4px solid #f97316;
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .converter-controls {
-            display: flex;
-            gap: 16px;
-            align-items: center;
-            flex-wrap: wrap;
-            margin-bottom: 24px;
-        }
-        .format-select {
-            background: rgba(0,0,0,0.3);
-            border: 1px solid #5e6ad2;
-            padding: 10px 16px;
-            border-radius: 40px;
-            color: white;
-        }
-        .convert-btn, .action-btn {
-            background: #5e6ad2;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 40px;
-            color: white;
-            cursor: pointer;
-        }
-        .conversion-result {
-            background: rgba(0,0,0,0.3);
-            border-radius: 16px;
-            padding: 20px;
-            min-height: 200px;
-        }
-        .converted-code {
-            font-family: monospace;
-            white-space: pre-wrap;
-            font-size: 0.85rem;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        /* Ajustes adicionales para que no quede pegado arriba */
-        .main-content {
-            padding: 24px;
-            width: 100%;
-        }
-        /* Ajustes para scroll vertical */
 .content, .main-content {
     flex: 1;
-    padding: 24px 32px;
-    overflow-y: auto;   /* Permite scroll si el contenido es largo */
-    height: 100%;       /* Asegura que ocupe toda la altura disponible */
-}
-
-/* Si usas .main-content específicamente, asegura que herede el comportamiento */
-.main-content {
-    overflow-y: auto;
-    padding: 40px;
-}
-
-.main-content {
-    flex: 1;
-    padding: 40px;
+    padding: 32px 40px;
     overflow-y: auto;
     height: 100%;
 }
 
-        .upload-section {
-            margin-bottom: 20px;
-        }
+.content h1, .main-content h1 {
+    font-family: var(--font-primary);
+    padding: 15px 0;
+}
 
-        .main-content h1{
-            padding: 15px;
-        }
+.footer {
+    margin-top: 32px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+}
