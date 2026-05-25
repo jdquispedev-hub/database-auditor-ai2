@@ -1,8 +1,5 @@
-// Verificar sesión
-if (!sessionStorage.getItem('ds_logged')) {
-    sessionStorage.setItem('ds_logged', 'true');
-    sessionStorage.setItem('ds_user', 'demo_user');
-}
+// Sesión verificada a nivel de página HTML
+
 
 const SUPABASE_URL = 'https://anzravhguhsdfnjfsjcm.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_sIB2jrePXiRBfBidFDFRjA_JeYe5cfP';

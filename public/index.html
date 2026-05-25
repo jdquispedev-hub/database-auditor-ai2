@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DataScript AI - Acceso</title>
     <link rel="stylesheet" href="css/login.css">
+    <script>
+    if (sessionStorage.getItem('ds_logged') === 'true') {
+        window.location.replace('html/usu_panel.html');
+    }
+    </script>
 </head>
 <body>
     <div class="container">

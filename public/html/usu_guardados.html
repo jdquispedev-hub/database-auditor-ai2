@@ -15,17 +15,29 @@
     window.onunhandledrejection = function(event) {
         alert("⚠️ PROMESA RECHAZADA (Guardados): " + event.reason);
     };
+    
+    // Si no hay sesión iniciada, expulsar al login inmediatamente
     if (!sessionStorage.getItem('ds_logged')) {
-        sessionStorage.setItem('ds_logged', 'true');
-        sessionStorage.setItem('ds_user', 'demo_user');
+        window.location.replace('/');
     }
+    
+    // Controlar el evento 'pageshow' para cuando el navegador vuelve atrás usando caché
     window.addEventListener('pageshow', function (event) {
         if (!sessionStorage.getItem('ds_logged')) {
-            sessionStorage.setItem('ds_logged', 'true');
-            sessionStorage.setItem('ds_user', 'demo_user');
+            window.location.replace('/');
         }
     });
-    function logoutSession() {
+
+    async function logoutSession() {
+        try {
+            if (window.supabaseClient && window.supabaseClient.auth) {
+                await window.supabaseClient.auth.signOut();
+            } else if (typeof supabaseClient !== 'undefined' && supabaseClient.auth) {
+                await supabaseClient.auth.signOut();
+            }
+        } catch (err) {
+            console.error('Error al cerrar sesión en Supabase:', err);
+        }
         sessionStorage.clear();
         window.location.replace('/');
     }
