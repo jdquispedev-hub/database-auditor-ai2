@@ -1378,36 +1378,8 @@ body {
         * { margin:0; padding:0; box-sizing:border-box; }
         body { font-family: 'Outfit', sans-serif; background: #0a0e1a; color: #eef2ff; height: 100vh; overflow: hidden; }
         .dashboard-wrapper { display: flex; height: 100vh; }
-        .sidebar {
-            width: 260px;
-            background: #111827;
-            border-right: 1px solid #2d3a5e;
-            display: flex;
-            flex-direction: column;
-        }
-        .logo-sidebar {
-            font-size: 1.4rem;
-            font-weight: bold;
-            padding: 24px;
-            text-align: center;
-            background: linear-gradient(135deg, #a78bfa, #5e6ad2);
-            background-clip: text;
-            -webkit-background-clip: text;
-            color: transparent;
-            border-bottom: 1px solid #2d3a5e;
-        }
-        .menu-item {
-            padding: 12px 24px;
-            margin: 4px 12px;
-            border-radius: 12px;
-            transition: 0.2s;
-            color: #cbd5e1;
-            text-decoration: none;
-            display: block;
-        }
-        .menu-item:hover { background: #1e293b; color: white; }
-        .menu-item.active { background: #5e6ad2; color: white; }
-        .logout { margin-top: auto; margin-bottom: 24px; color: #f87171; cursor: pointer; }
+        /* Sidebar styles are now loaded from public/css/sidebar.css */
+
         
         /* Contenido principal con padding suficiente */
         .content {

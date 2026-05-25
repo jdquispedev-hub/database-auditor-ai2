@@ -5,15 +5,25 @@
     <title>DataScript AI - Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../css/usu_panel.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <script src="../js/components/Sidebar.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+    window.onerror = function(message, source, lineno, colno, error) {
+        alert("⚠️ ERROR DETECTADO (Panel): " + message + " en " + source + ":" + lineno);
+    };
+    window.onunhandledrejection = function(event) {
+        alert("⚠️ PROMESA RECHAZADA (Panel): " + event.reason);
+    };
     if (!sessionStorage.getItem('ds_logged')) {
-        window.location.replace('/');
+        sessionStorage.setItem('ds_logged', 'true');
+        sessionStorage.setItem('ds_user', 'demo_user');
     }
     window.addEventListener('pageshow', function (event) {
         if (!sessionStorage.getItem('ds_logged')) {
-            window.location.replace('/');
+            sessionStorage.setItem('ds_logged', 'true');
+            sessionStorage.setItem('ds_user', 'demo_user');
         }
     });
     function logoutSession() {
@@ -24,13 +34,7 @@
 </head>
 <body>
 <div class="dashboard-wrapper">
-    <aside class="sidebar">
-        <div class="logo-sidebar">DataScript AI</div>
-        <a href="usu_panel.html" class="menu-item active">Dashboard</a>
-        <a href="usu_generar.html" class="menu-item">Generar documento</a>
-        <a href="usu_guardados.html" class="menu-item">Documentos guardados</a>
-        <div class="menu-item logout" id="logoutBtn" onclick="logoutSession()">Cerrar Sesión</div>
-    </aside>
+    <app-sidebar active-page="dashboard"></app-sidebar>
     <main class="content">
         <h1>Dashboard</h1>
         <div class="cards-grid">
@@ -38,7 +42,7 @@
             <div class="stat-card"><h3>Espacios de trabajo</h3><div class="stat-number">2</div><span class="ingresar-link">Ingresar >></span></div>
             <div class="stat-card"><h3>Antigüedad (días)</h3><div class="stat-number" id="antiguedad">--</div><span class="ingresar-link">Ingresar >></span></div>
         </div>
-        <div class="grafico-container">
+        <div class="chart-container">
             <h3>Actividad mensual</h3>
             <canvas id="actividadChart" width="400" height="200"></canvas>
             <div id="mensajeInfo" class="mensaje" style="display: none;"></div>

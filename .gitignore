@@ -23,3 +23,4 @@ result_test*.json
 Thumbs.db
 .vscode/
 .idea/
+.vercel

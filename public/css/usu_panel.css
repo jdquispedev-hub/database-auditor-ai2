@@ -17,62 +17,8 @@
             height: 100vh;
         }
 
-        /* Sidebar */
-        .sidebar {
-            width: 270px;
-            background: #111827;
-            border-right: 1px solid #2d3a5e;
-            display: flex;
-            flex-direction: column;
-            flex-shrink: 0;
-        }
+        /* Sidebar styles are now loaded from public/css/sidebar.css */
 
-        .logo-sidebar {
-            font-size: 1.4rem;
-            font-weight: 700;
-            text-align: center;
-            padding: 24px 16px;
-            background: linear-gradient(135deg, #a78bfa, #5e6ad2);
-            background-clip: text;
-            -webkit-background-clip: text;
-            color: transparent;
-            border-bottom: 1px solid #2d3a5e;
-            letter-spacing: -0.3px;
-        }
-
-        .menu-item {
-            padding: 12px 20px;
-            margin: 5px 12px;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-weight: 500;
-            color: #cbd5e1;
-            text-decoration: none;
-            display: block;
-        }
-
-        .menu-item:hover {
-            background: #1e293b;
-            color: white;
-        }
-
-        .menu-item.active {
-            background: #5e6ad2;
-            color: white;
-            box-shadow: 0 2px 8px rgba(94, 106, 210, 0.3);
-        }
-
-        .logout {
-            margin-top: auto;
-            margin-bottom: 24px;
-            color: #f87171;
-        }
-
-        .logout:hover {
-            background: #7f1d1d;
-            color: #fecaca;
-        }
 
         /* Main content - con scroll vertical */
         .content {
@@ -169,3 +115,158 @@
 .content h1{
         padding: 15px;
     }
+
+/* --- Estilos para Documentos Guardados (Tablas, Botones y Modales) --- */
+.seccion-tabla {
+    margin-top: 30px;
+    background: rgba(17, 24, 39, 0.8);
+    border: 1px solid #2d3a5e;
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.seccion-tabla h2 {
+    font-size: 1.2rem;
+    color: #a78bfa;
+    margin-bottom: 20px;
+    font-weight: 600;
+}
+
+.doc-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    color: #e2e8f0;
+}
+
+.doc-table th {
+    padding: 14px 16px;
+    background: rgba(30, 41, 59, 0.6);
+    border-bottom: 2px solid #2d3a5e;
+    font-weight: 600;
+    color: #cbd5e1;
+}
+
+.doc-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #2d3a5e;
+    color: #cbd5e1;
+    font-size: 0.95rem;
+}
+
+.doc-table tr:hover {
+    background: rgba(30, 41, 59, 0.4);
+}
+
+/* Botones de acción */
+.action-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.action-buttons button, .restore-pap, .delete-perm {
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+}
+
+/* Ver */
+.action-buttons button.view-doc, .restore-pap {
+    background: rgba(167, 139, 250, 0.15);
+    color: #c084fc;
+    border: 1px solid rgba(167, 139, 250, 0.3);
+}
+
+.action-buttons button.view-doc:hover, .restore-pap:hover {
+    background: #a78bfa;
+    color: #111827;
+    box-shadow: 0 0 10px rgba(167, 139, 250, 0.4);
+}
+
+/* Editar */
+.action-buttons button.edit-doc {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.action-buttons button.edit-doc:hover {
+    background: #3b82f6;
+    color: white;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+}
+
+/* Eliminar */
+.action-buttons button.delete-doc, .delete-perm {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.action-buttons button.delete-doc:hover, .delete-perm:hover {
+    background: #ef4444;
+    color: white;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+/* Mensaje vacío */
+.empty-message {
+    padding: 30px;
+    text-align: center;
+    color: #94a3b8;
+    font-style: italic;
+    background: rgba(30, 41, 59, 0.2);
+    border-radius: 12px;
+    border: 1px dashed #2d3a5e;
+}
+
+/* Modal Premium */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10, 14, 26, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #111827;
+    border: 1px solid #2d3a5e;
+    border-radius: 24px;
+    width: 90%;
+    max-width: 800px;
+    padding: 30px;
+    position: relative;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalSlideUp {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.close-modal {
+    position: absolute;
+    top: 20px;
+    right: 24px;
+    font-size: 2rem;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.close-modal:hover {
+    color: #f87171;
+}
