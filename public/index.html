@@ -1,62 +1,459 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DataScript AI - Acceso</title>
-    <link rel="stylesheet" href="css/login.css">
-    <script>
-    if (sessionStorage.getItem('ds_logged') === 'true') {
-        window.location.replace('html/usu_panel.html');
-    }
-    </script>
+    <title>DataScript AI - Documentación Inteligente de Bases de Datos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/landing.css">
 </head>
+
 <body>
-    <div class="container">
-        <div class="card" id="cardContainer">
-            <div class="logo-header">
-                <h1>DataScript AI</h1>
-                <p>Convierte tus bases de datos en documentos profesionales</p>
+    <!-- Background Glowing Orbs -->
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+
+    <!-- Navigation Header -->
+    <header class="navbar">
+        <a href="index.html" class="logo">DataScript AI</a>
+        <a href="html/login.html" class="btn-login">Iniciar Sesión</a>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-badge">
+            <span class="hero-badge-dot"></span>
+            Impulsado por IA Generativa
+        </div>
+        <h1>Mejor documentador de bases de datos:<br><span>vea todo en detalle</span></h1>
+        <p>Amplía y mejora tus esquemas para mejorar la calidad del diseño. Genera diagramas ER relacionales
+            interactivos, audita anomalías de integridad y transpila código con un solo clic.</p>
+        <div class="hero-actions">
+            <a href="html/login.html" class="btn-hero-primary">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                Comenzar Gratis
+            </a>
+            <a href="#showcase" class="btn-hero-secondary">Ver Demostración</a>
+        </div>
+        <div class="hero-stats">
+            <div class="hero-stat">
+                <span class="hero-stat-number" data-target="10000">0</span>
+                <span class="hero-stat-plus">+</span>
+                <span class="hero-stat-label">Usuarios Activos</span>
             </div>
-            <!-- LOGIN -->
-            <div class="form-container login-form" id="loginFormContainer">
-                <h2>Iniciar Sesión</h2>
-                <div class="field">
-                    <label>Usuario</label>
-                    <input type="text" id="loginUser" placeholder="Usuario">
-                </div>
-                <div class="field">
-                    <label>Contraseña</label>
-                    <input type="password" id="loginPass" placeholder="Contraseña">
-                </div>
-                <button id="btnLogin">Acceder</button>
-                <p class="switch-link">¿No tiene una cuenta? <a href="#" id="showRegister">Regístrese</a></p>
+            <div class="hero-stat-divider"></div>
+            <div class="hero-stat">
+                <span class="hero-stat-number" data-target="50000">0</span>
+                <span class="hero-stat-plus">+</span>
+                <span class="hero-stat-label">Esquemas Analizados</span>
             </div>
-            <!-- REGISTRO -->
-            <div class="form-container register-form" id="registerFormContainer" style="display: none;">
-                <h2>Regístrate</h2>
-                <div class="field-row">
-                    <div class="field"><label>Nombres</label><input type="text" id="regNombres"></div>
-                    <div class="field"><label>Apellidos</label><input type="text" id="regApellidos"></div>
-                </div>
-                <div class="field"><label>Correo Electrónico</label><input type="email" id="regEmail"></div>
-                <div class="field">
-                    <label>Tipo de uso</label>
-                    <select id="regTipoUso">
-                        <option>Personal</option><option>Profesional</option><option>Educativo</option><option>Empresarial</option>
-                    </select>
-                </div>
-                <div class="field"><label>Usuario</label><input type="text" id="regUsuario"></div>
-                <div class="field-row">
-                    <div class="field"><label>Contraseña</label><input type="password" id="regPassword"></div>
-                    <div class="field"><label>Confirmar</label><input type="password" id="regConfirmPassword"></div>
-                </div>
-                <button id="btnRegister">Crear Usuario</button>
-                <p class="switch-link">¿Ya tienes una cuenta? <a href="#" id="showLogin">Iniciar Sesión</a></p>
+            <div class="hero-stat-divider"></div>
+            <div class="hero-stat">
+                <span class="hero-stat-number" data-target="99">0</span>
+                <span class="hero-stat-plus">.9%</span>
+                <span class="hero-stat-label">Uptime Garantizado</span>
             </div>
         </div>
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/login.js"></script>
+    </section>
+
+    <!-- Trusted Technologies Bar -->
+    <section class="trust-bar">
+        <p class="trust-label">Compatible con las bases de datos que ya usas</p>
+        <div class="trust-logos">
+            <span class="trust-logo">PostgreSQL</span>
+            <span class="trust-logo">MySQL</span>
+            <span class="trust-logo">SQL Server</span>
+            <span class="trust-logo">Oracle</span>
+            <span class="trust-logo">MongoDB</span>
+            <span class="trust-logo">MariaDB</span>
+        </div>
+    </section>
+
+    <!-- Interactive Before/After Showcase Grid -->
+    <section class="showcase-grid" id="showcase">
+
+        <!-- CARD 1: Diagramación ER -->
+        <article class="showcase-card">
+            <div class="compare-container">
+                <!-- Left (Before): Clean Raw Code -->
+                <div class="compare-before">
+                    <div class="mockup-sql-before">
+                        <span class="kw">CREATE TABLE</span> <span class="table">usuarios</span> (
+                        id <span class="kw">INT AUTO_INC</span>,
+                        nombres <span class="kw">VARCHAR</span>(50),
+                        correo <span class="kw">VARCHAR</span>(100)
+                        );
+
+                        <span class="kw">CREATE TABLE</span> <span class="table">documentos</span> (
+                        id <span class="kw">INT AUTO_INC</span>,
+                        usuario_id <span class="kw">INT</span>,
+                        titulo <span class="kw">VARCHAR</span>(100)
+                        );
+                    </div>
+                    <span class="badge-before">Antes</span>
+                </div>
+
+                <!-- Right (After): Interactive Visual Diagram -->
+                <div class="compare-after">
+                    <div class="compare-after-content">
+                        <div class="mockup-er-after">
+                            <div class="mockup-node">
+                                usuarios
+                                <div class="mockup-node-pk">PK : id</div>
+                            </div>
+                            <div class="mockup-line"></div>
+                            <div class="mockup-node">
+                                documentos
+                                <div class="mockup-node-pk">FK : usuario_id</div>
+                            </div>
+                        </div>
+                        <span class="badge-after">Después</span>
+                    </div>
+                </div>
+
+                <!-- Sliding Handle -->
+                <div class="compare-handle">
+                    <div class="compare-handle-circle">↔</div>
+                </div>
+            </div>
+
+            <div class="showcase-info">
+                <h3>Diagrama ER Relacional</h3>
+                <p>Super Ampliación de IA. Aumenta la claridad de tu base de datos convirtiendo código SQL plano en
+                    hermosos esquemas interactivos visuales.</p>
+            </div>
+        </article>
+
+        <!-- CARD 2: Auditoría y Anomalías -->
+        <article class="showcase-card">
+            <div class="compare-container">
+                <!-- Left (Before): Table errors -->
+                <div class="compare-before">
+                    <div class="mockup-anomalies-before">
+                        <div class="mockup-error-row">
+                            <span class="mockup-error-title">Tablas sin PK</span>
+                            <span class="mockup-error-lbl">CRÍTICO</span>
+                        </div>
+                        <div class="mockup-error-row">
+                            <span class="mockup-error-title">Uso de FLOAT</span>
+                            <span class="mockup-error-lbl">ADVERTENCIA</span>
+                        </div>
+                        <div class="mockup-error-row">
+                            <span class="mockup-error-title">Faltan FKs</span>
+                            <span class="mockup-error-lbl">REVISIÓN</span>
+                        </div>
+                    </div>
+                    <span class="badge-before">Antes</span>
+                </div>
+
+                <!-- Right (After): Smart Scorecard -->
+                <div class="compare-after">
+                    <div class="compare-after-content">
+                        <div class="mockup-anomalies-after">
+                            <div class="mockup-score-circle">
+                                <span class="mockup-score-value">98%</span>
+                                <span class="mockup-score-lbl">Salud</span>
+                            </div>
+                            <span class="mockup-score-desc">¡Diseño Optimizado!</span>
+                        </div>
+                        <span class="badge-after">Después</span>
+                    </div>
+                </div>
+
+                <!-- Sliding Handle -->
+                <div class="compare-handle">
+                    <div class="compare-handle-circle">↔</div>
+                </div>
+            </div>
+
+            <div class="showcase-info">
+                <h3>Auditoría de Anomalías</h3>
+                <p>Afilador de esquemas AI. Identifica automáticamente fallos críticos de integridad relacional, llaves
+                    duplicadas e índices de rendimiento faltantes.</p>
+            </div>
+        </article>
+
+        <!-- CARD 3: Conversión de Esquemas -->
+        <article class="showcase-card">
+            <div class="compare-container">
+                <!-- Left (Before): Relational SQL -->
+                <div class="compare-before">
+                    <div class="mockup-sql-before">
+                        <span class="kw">CREATE TABLE</span> <span class="table">perfiles</span> (
+                        id <span class="kw">VARCHAR</span>(36),
+                        nombres <span class="kw">VARCHAR</span>(50),
+                        tipo_uso <span class="kw">VARCHAR</span>(30),
+                        <span class="kw">PRIMARY KEY</span> (id)
+                        );
+                    </div>
+                    <span class="badge-before">Antes</span>
+                </div>
+
+                <!-- Right (After): Modern Schema -->
+                <div class="compare-after">
+                    <div class="compare-after-content">
+                        <div class="mockup-prisma-after">
+                            <span class="kw">model</span> <span class="type">Perfil</span> {
+                            id <span class="type">String</span> @id
+                            nombres <span class="type">String</span>
+                            tipo_uso <span class="type">String</span>
+                            }
+                        </div>
+                        <span class="badge-after">Después</span>
+                    </div>
+                </div>
+
+                <!-- Sliding Handle -->
+                <div class="compare-handle">
+                    <div class="compare-handle-circle">↔</div>
+                </div>
+            </div>
+
+            <div class="showcase-info">
+                <h3>Conversión de Esquemas</h3>
+                <p>AI Schema Converter. Transpila código SQL relacional plano a modernos esquemas de programación como
+                    Prisma ORM, MongoDB o GraphQL.</p>
+            </div>
+        </article>
+
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works">
+        <h2>¿Cómo funciona?</h2>
+        <p class="section-desc">Tres pasos simples para transformar tu base de datos en documentación profesional.</p>
+        <div class="steps-row">
+            <div class="step-card">
+                <div class="step-number">1</div>
+                <div class="step-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
+                <h4>Conecta tu Base de Datos</h4>
+                <p>Ingresa la cadena de conexión o sube tu archivo SQL. Soportamos PostgreSQL, MySQL y más.</p>
+            </div>
+            <div class="step-connector">
+                <svg width="40" height="24" viewBox="0 0 40 24" fill="none"><path d="M0 12h36M30 6l6 6-6 6" stroke="#5e6ad2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="step-card">
+                <div class="step-number">2</div>
+                <div class="step-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                </div>
+                <h4>La IA Analiza y Documenta</h4>
+                <p>Nuestro motor de IA examina relaciones, detecta anomalías y genera documentación técnica completa.</p>
+            </div>
+            <div class="step-connector">
+                <svg width="40" height="24" viewBox="0 0 40 24" fill="none"><path d="M0 12h36M30 6l6 6-6 6" stroke="#5e6ad2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="step-card">
+                <div class="step-number">3</div>
+                <div class="step-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                </div>
+                <h4>Exporta y Comparte</h4>
+                <p>Descarga diagramas ER, reportes de auditoría y documentación en PDF, Markdown o HTML al instante.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Community Carousel Section -->
+    <section class="community-section">
+        <h2>Ellos ya optimizan con DataScript AI</h2>
+        <p class="section-desc">Únete a más de 10,000 ingenieros de software, DBAs y arquitectos de datos que ya
+            documentan y auditan sus proyectos de forma automática.</p>
+
+        <!-- Marquee Row 1 (scrolls left) -->
+        <div class="carousel-track-wrapper">
+            <div class="carousel-track" data-direction="left">
+                <!-- User 1 -->
+                <div class="community-card">
+                    <div class="community-avatar-wrapper">
+                        <img class="community-avatar"
+                            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80"
+                            alt="Sofia R." loading="lazy">
+                    </div>
+                    <div class="community-info">
+                        <div class="community-name">Sofía Rodríguez</div>
+                        <div class="community-role">Database Architect</div>
+                    </div>
+                    <span class="community-badge">DBA</span>
+                </div>
+                <!-- User 2 -->
+                <div class="community-card">
+                    <div class="community-avatar-wrapper">
+                        <img class="community-avatar"
+                            src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80"
+                            alt="Carlos M." loading="lazy">
+                    </div>
+                    <div class="community-info">
+                        <div class="community-name">Carlos Mendoza</div>
+                        <div class="community-role">Lead Backend Developer</div>
+                    </div>
+                    <span class="community-badge">Dev</span>
+                </div>
+                <!-- User 3 -->
+                <div class="community-card">
+                    <div class="community-avatar-wrapper">
+                        <img class="community-avatar"
+                            src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80"
+                            alt="Ana L." loading="lazy">
+                    </div>
+                    <div class="community-info">
+                        <div class="community-name">Ana Llerena</div>
+                        <div class="community-role">Senior Data Engineer</div>
+                    </div>
+                    <span class="community-badge">Data Eng</span>
+                </div>
+                <!-- User 4 -->
+                <div class="community-card">
+                    <div class="community-avatar-wrapper">
+                        <img class="community-avatar"
+                            src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"
+                            alt="Alejandro K." loading="lazy">
+                    </div>
+                    <div class="community-info">
+                        <div class="community-name">Alejandro Kovac</div>
+                        <div class="community-role">Cloud Infrastructure Engineer</div>
+                    </div>
+                    <span class="community-badge">DevOps</span>
+                </div>
+                <!-- User 5 -->
+                <div class="community-card">
+                    <div class="community-avatar-wrapper">
+                        <img class="community-avatar"
+                            src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150&h=150&q=80"
+                            alt="Lucia T." loading="lazy">
+                    </div>
+                    <div class="community-info">
+                        <div class="community-name">Lucía Tejeda</div>
+                        <div class="community-role">Systems Architect</div>
+                    </div>
+                    <span class="community-badge">Architect</span>
+                </div>
+                <!-- User 6 -->
+                <div class="community-card">
+                    <div class="community-avatar-wrapper">
+                        <img class="community-avatar"
+                            src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80"
+                            alt="Mateo P." loading="lazy">
+                    </div>
+                    <div class="community-info">
+                        <div class="community-name">Mateo Peralta</div>
+                        <div class="community-role">Fullstack Engineer</div>
+                    </div>
+                    <span class="community-badge">Dev</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Marquee Row 2 (scrolls right) -->
+        <div class="carousel-track-wrapper">
+            <div class="carousel-track" data-direction="right">
+                <!-- User 7 -->
+                <div class="community-card">
+                    <div class="community-avatar-wrapper">
+                        <img class="community-avatar"
+                            src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&h=150&q=80"
+                            alt="Elena V." loading="lazy">
+                    </div>
+                    <div class="community-info">
+                        <div class="community-name">Elena Valenzuela</div>
+                        <div class="community-role">Database Developer</div>
+                    </div>
+                    <span class="community-badge">DBA</span>
+                </div>
+                <!-- User 8 -->
+                <div class="community-card">
+                    <div class="community-avatar-wrapper">
+                        <img class="community-avatar"
+                            src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&h=150&q=80"
+                            alt="Ruben S." loading="lazy">
+                    </div>
+                    <div class="community-info">
+                        <div class="community-name">Rubén Salgado</div>
+                        <div class="community-role">CTO & Cofounder</div>
+                    </div>
+                    <span class="community-badge">CTO</span>
+                </div>
+                <!-- User 9 -->
+                <div class="community-card">
+                    <div class="community-avatar-wrapper">
+                        <img class="community-avatar"
+                            src="https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=150&h=150&q=80"
+                            alt="Valentina G." loading="lazy">
+                    </div>
+                    <div class="community-info">
+                        <div class="community-name">Valentina García</div>
+                        <div class="community-role">Data Scientist</div>
+                    </div>
+                    <span class="community-badge">ML</span>
+                </div>
+                <!-- User 10 -->
+                <div class="community-card">
+                    <div class="community-avatar-wrapper">
+                        <img class="community-avatar"
+                            src="https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=150&h=150&q=80"
+                            alt="Diego H." loading="lazy">
+                    </div>
+                    <div class="community-info">
+                        <div class="community-name">Diego Hernández</div>
+                        <div class="community-role">Solutions Architect</div>
+                    </div>
+                    <span class="community-badge">Architect</span>
+                </div>
+                <!-- User 11 -->
+                <div class="community-card">
+                    <div class="community-avatar-wrapper">
+                        <img class="community-avatar"
+                            src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&h=150&q=80"
+                            alt="Camila R." loading="lazy">
+                    </div>
+                    <div class="community-info">
+                        <div class="community-name">Camila Restrepo</div>
+                        <div class="community-role">QA Engineer Lead</div>
+                    </div>
+                    <span class="community-badge">QA</span>
+                </div>
+                <!-- User 12 -->
+                <div class="community-card">
+                    <div class="community-avatar-wrapper">
+                        <img class="community-avatar"
+                            src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=150&h=150&q=80"
+                            alt="Fernando L." loading="lazy">
+                    </div>
+                    <div class="community-info">
+                        <div class="community-name">Fernando López</div>
+                        <div class="community-role">VP of Engineering</div>
+                    </div>
+                    <span class="community-badge">VP Eng</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA Section -->
+    <section class="final-cta">
+        <div class="final-cta-glow"></div>
+        <h2>¿Listo para documentar tu base de datos?</h2>
+        <p>Empieza ahora gratis. Sin tarjeta de crédito. Sin configuración compleja.</p>
+        <a href="html/login.html" class="btn-hero-primary btn-cta-final">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            Comenzar Ahora
+        </a>
+    </section>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="footer-content">
+            <span class="footer-brand">DataScript AI</span>
+            <span class="footer-copy">© 2026 DataScript AI. Todos los derechos reservados.</span>
+        </div>
+    </footer>
+
+    
+    <!-- Scripts -->
+    <script src="js/landing.js"></script>
 </body>
+
 </html>

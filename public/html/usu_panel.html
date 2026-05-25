@@ -19,13 +19,13 @@
     
     // Si no hay sesión iniciada, expulsar al login inmediatamente
     if (!sessionStorage.getItem('ds_logged')) {
-        window.location.replace('/');
+        window.location.replace('login.html');
     }
     
     // Controlar el evento 'pageshow' para cuando el navegador vuelve atrás usando caché
     window.addEventListener('pageshow', function (event) {
         if (!sessionStorage.getItem('ds_logged')) {
-            window.location.replace('/');
+            window.location.replace('login.html');
         }
     });
 
@@ -40,7 +40,7 @@
             console.error('Error al cerrar sesión en Supabase:', err);
         }
         sessionStorage.clear();
-        window.location.replace('/');
+        window.location.replace('login.html');
     }
     </script>
 </head>
