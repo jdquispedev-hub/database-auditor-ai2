@@ -208,7 +208,22 @@ class SQLAnalyzer:
 
     def _detect_dialect(self, content: str) -> str:
         c = content.lower()
-        if 'bigint' in c or 'serial' in c: return 'postgres'
+        # SQL Server
+        if any(k in c for k in ('identity(', 'nvarchar', 'ntext', 'datetime2', 
+                                 'datetimeoffset', 'smalldatetime', 'uniqueidentifier',
+                                 'money', 'smallmoney', 'image', 'sql_variant')):
+            return 'sqlserver'
+        # SQLite
+        if any(k in c for k in ('autoincrement', 'integer primary key')):
+            return 'sqlite'
+        # PostgreSQL
+        if any(k in c for k in ('serial', 'bigserial', 'text', 'boolean', 'bytea',
+                                 'jsonb', 'inet', 'macaddr', 'uuid', 'tsvector')):
+            return 'postgres'
+        # MySQL / MariaDB
+        if any(k in c for k in ('auto_increment', 'engine=', 'charset=', 'collate=',
+                                 'using btree', 'enum(')):
+            return 'mysql'
         return 'mysql'
     
     def _extract_table_info(self, stmt) -> Dict[str, Any]:
@@ -414,7 +429,7 @@ class SQLAnalyzer:
                         
                         nullable = not 'NOT NULL' in constraints.upper()
                         primary_key = 'PRIMARY KEY' in constraints.upper()
-                        auto_increment = 'AUTO_INCREMENT' in constraints.upper()
+                        auto_increment = 'AUTO_INCREMENT' in constraints.upper() or 'IDENTITY' in constraints.upper()
                         
                         if primary_key:
                             primary_keys.append(col_name)
@@ -480,7 +495,7 @@ class SQLAnalyzer:
                 seen_rels.add(rel_id)
                 
         return {
-            'tables': tables, 'relations': unique_relations, 'dialect': 'unknown',
+            'tables': tables, 'relations': unique_relations, 'dialect': self._detect_dialect(content),
             'totalTables': len(tables), 'totalRelations': len(unique_relations)
         }
 

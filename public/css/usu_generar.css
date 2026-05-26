@@ -1562,3 +1562,45 @@ body {
         .main-content h1{
             padding: 15px;
         }
+
+/* ===================== DATOS DE PRUEBA ===================== */
+.badge-required {
+    display: inline-block;
+    background: rgba(255, 167, 38, 0.2);
+    color: #ffcc80;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.testdata-table-list {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.testdata-table-row {
+    transition: background 0.2s;
+}
+
+.testdata-table-row:hover {
+    background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.testdata-table-row input[type="number"]::-webkit-inner-spin-button,
+.testdata-table-row input[type="number"]::-webkit-outer-spin-button {
+    opacity: 1;
+}
+
+.testdata-summary {
+    margin-bottom: 16px;
+}
+
+.testdata-preview .converted-code {
+    max-height: 500px;
+    overflow: auto;
+}

@@ -31,6 +31,7 @@ try:
     from analyzers.nosql_analyzer import NoSQLAnalyzer
     from analyzers.diagram_generator import DiagramGenerator
     from analyzers.schema_converter import SchemaConverter
+    from analyzers.data_generator import generate_test_data
 except ImportError as e:
     print(json.dumps({
         'success': False, 
@@ -200,8 +201,32 @@ class DatabaseAnalyzer:
 
 def main():
     parser = argparse.ArgumentParser(description='Analizador de Bases de Datos con Python')
-    parser.add_argument('--file', required=True, help='Ruta del archivo a analizar')
+    parser.add_argument('--file', help='Ruta del archivo a analizar')
+    parser.add_argument('--generate-data', action='store_true', help='Modo generador de datos de prueba')
     args = parser.parse_args()
+    
+    # Modo generador de datos de prueba
+    if args.generate_data:
+        try:
+            input_data = sys.stdin.read()
+            payload = json.loads(input_data)
+            schema = payload.get('schema', {})
+            config = payload.get('config', {})
+            result = generate_test_data(schema, config)
+            print(json.dumps({
+                'success': True,
+                'data': result
+            }, indent=2, ensure_ascii=False))
+        except Exception as e:
+            print(json.dumps({
+                'success': False,
+                'error': str(e)
+            }, indent=2, ensure_ascii=False))
+        return
+    
+    if not args.file:
+        parser.print_help()
+        sys.exit(1)
     
     analyzer = DatabaseAnalyzer()
     result = analyzer.analyze_file(args.file)

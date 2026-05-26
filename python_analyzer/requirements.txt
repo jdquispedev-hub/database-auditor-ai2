@@ -19,3 +19,6 @@ openpyxl>=3.1.0
 
 # Schema Conversion
 lxml>=4.9.0
+
+# Data Generation (test data / fake data)
+faker>=18.0.0

@@ -130,6 +130,16 @@ function setupEventListeners() {
     if (saveDocBtn) {
         saveDocBtn.addEventListener('click', saveDocumentToSupabase);
     }
+
+    // Datos de Prueba
+    const quickGenerateBtn = document.getElementById('quickGenerateBtn');
+    if (quickGenerateBtn) {
+        quickGenerateBtn.addEventListener('click', generateTestData);
+    }
+    const downloadTestDataBtn = document.getElementById('downloadTestDataBtn');
+    if (downloadTestDataBtn) {
+        downloadTestDataBtn.addEventListener('click', downloadTestData);
+    }
 }
 
 
@@ -314,6 +324,7 @@ function displayResults(results) {
     displayDocumentation(results.documentation);
     displayDiagram(results.schema);
     displayAnomalies(results.schema);
+    displayTestData(results.schema);
     resultsSection.style.display = 'block';
     resetConversionResult();
     updateConverterButtons();
@@ -2045,4 +2056,192 @@ async function saveDocumentToSupabase() {
         saveBtn.disabled = false;
         saveBtn.innerHTML = originalText;
     }
+}
+
+// ===================== DATOS DE PRUEBA =====================
+let lastGeneratedScript = '';
+let lastGeneratedDialect = 'sql';
+
+function displayTestData(schema) {
+    const summary = document.getElementById('testdataSummary');
+    const advanced = document.getElementById('testdataAdvanced');
+    const tableList = document.getElementById('testdataTableList');
+    const preview = document.getElementById('testdataPreview');
+    const codeEl = document.getElementById('testdataCode');
+    const downloadBtn = document.getElementById('downloadTestDataBtn');
+
+    if (!summary || !advanced || !tableList) return;
+
+    lastGeneratedScript = '';
+    lastGeneratedDialect = 'sql';
+    if (downloadBtn) downloadBtn.disabled = true;
+    if (preview) preview.style.display = 'none';
+    if (codeEl) codeEl.textContent = '';
+
+    if (!schema || !schema.tables || schema.tables.length === 0) {
+        summary.innerHTML = '<p class="placeholder-text" style="position:static; transform:none; width:auto;">No se encontraron tablas en el esquema.</p>';
+        advanced.style.display = 'none';
+        return;
+    }
+
+    const tables = schema.tables;
+    const required = getRequiredTables(schema);
+    const dialect = getDialectFromSchema(schema);
+    const isNoSql = dialect === 'json' || schema.type === 'nosql' || schema.type === 'json' || schema.type === 'yaml' || schema.type === 'excel';
+    lastGeneratedDialect = isNoSql ? 'json' : 'sql';
+
+    summary.innerHTML = `
+        <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+            <div>
+                <strong style="color:var(--accent-hover);">Esquema detectado:</strong> 
+                <span style="color:var(--text-muted);">${isNoSql ? 'NoSQL / JSON' : 'SQL (' + (schema.dialect || 'genérico').toUpperCase() + ')'}</span>
+                <br>
+                <span style="color:var(--text-muted); font-size:0.9rem;">${tables.length} tabla(s) disponibles.</span>
+            </div>
+            <button id="toggleAdvancedBtn" class="action-btn" style="min-width:auto; padding:8px 16px;">
+                Configurar tablas
+            </button>
+        </div>
+    `;
+
+    const toggleBtn = document.getElementById('toggleAdvancedBtn');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            const isHidden = advanced.style.display === 'none';
+            advanced.style.display = isHidden ? 'block' : 'none';
+            toggleBtn.textContent = isHidden ? 'Ocultar configuración' : 'Configurar tablas';
+        });
+    }
+
+    // Renderizar lista de tablas
+    let html = '';
+    tables.forEach((table, idx) => {
+        const tname = table.name;
+        const isRequired = required.has(tname);
+        html += `
+            <div class="testdata-table-row" style="display:flex; align-items:center; gap:12px; padding:10px 12px; background:rgba(255,255,255,0.03); border-radius:10px; margin-bottom:8px; flex-wrap:wrap;">
+                <input type="checkbox" id="td-check-${idx}" ${isRequired ? 'checked disabled' : 'checked'} 
+                    style="width:18px; height:18px; accent-color:var(--accent); cursor:pointer;">
+                <label for="td-check-${idx}" style="flex:1; min-width:120px; font-weight:500; cursor:${isRequired ? 'default' : 'pointer'};">
+                    ${escapeHtml(tname)}
+                    ${isRequired ? '<span class="badge-required">REQUERIDA</span>' : ''}
+                </label>
+                <div style="display:flex; align-items:center; gap:8px; color:var(--text-muted); font-size:0.9rem;">
+                    <span>Filas:</span>
+                    <input type="number" id="td-rows-${idx}" min="1" max="20" value="5" 
+                        style="width:64px; background:rgba(0,0,0,0.3); border:1px solid var(--border-color); color:var(--text-main); padding:6px 10px; border-radius:8px; font-family:var(--font-family);">
+                </div>
+            </div>
+        `;
+    });
+    tableList.innerHTML = html;
+    advanced.style.display = 'none';
+}
+
+function getRequiredTables(schema) {
+    const required = new Set();
+    const tables = schema.tables || [];
+    tables.forEach(t => {
+        const fks = t.foreignKeys || [];
+        fks.forEach(fk => {
+            const refTable = fk.referencesTable || (fk.references && fk.references.table) || '';
+            if (refTable) required.add(refTable);
+        });
+    });
+    return required;
+}
+
+function getDialectFromSchema(schema) {
+    if (!schema) return 'mysql';
+    if (schema.dialect) return schema.dialect.toLowerCase();
+    if (schema.type) return schema.type.toLowerCase();
+    return 'mysql';
+}
+
+async function generateTestData() {
+    if (!currentResults || !currentResults.schema) {
+        showError('Primero debes analizar un archivo para generar datos de prueba.');
+        return;
+    }
+
+    const schema = currentResults.schema;
+    const tables = schema.tables || [];
+    const required = getRequiredTables(schema);
+    const preview = document.getElementById('testdataPreview');
+    const codeEl = document.getElementById('testdataCode');
+    const downloadBtn = document.getElementById('downloadTestDataBtn');
+    const quickBtn = document.getElementById('quickGenerateBtn');
+
+    // Construir config desde UI
+    const configTables = {};
+    tables.forEach((table, idx) => {
+        const tname = table.name;
+        const checkbox = document.getElementById(`td-check-${idx}`);
+        const rowsInput = document.getElementById(`td-rows-${idx}`);
+        const enabled = checkbox ? checkbox.checked : true;
+        const rows = rowsInput ? Math.min(parseInt(rowsInput.value) || 5, 20) : 5;
+        configTables[tname] = {
+            enabled: enabled || required.has(tname),
+            rows: rows
+        };
+    });
+
+    const config = {
+        maxRows: 5,
+        tables: configTables
+    };
+
+    quickBtn.disabled = true;
+    quickBtn.innerHTML = 'Generando...';
+
+    try {
+        const response = await fetch('/generate-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ schema, config })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.sqlScript) {
+            lastGeneratedScript = result.sqlScript;
+            codeEl.textContent = result.sqlScript;
+            preview.style.display = 'block';
+            downloadBtn.disabled = false;
+
+            // Scroll al preview
+            preview.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else {
+            showError(result.error || 'No se pudo generar el script de datos de prueba.');
+        }
+    } catch (error) {
+        showError('Error de conexión: ' + error.message);
+    } finally {
+        quickBtn.disabled = false;
+        quickBtn.innerHTML = `
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            Generar INSERTs de Prueba
+        `;
+    }
+}
+
+function downloadTestData() {
+    if (!lastGeneratedScript) {
+        showError('No hay datos generados para descargar.');
+        return;
+    }
+    const extension = lastGeneratedDialect === 'json' ? 'js' : 'sql';
+    const blob = new Blob([lastGeneratedScript], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `datos_prueba_${Date.now()}.${extension}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 }

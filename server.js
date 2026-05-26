@@ -55,6 +55,16 @@ const upload = multer({
     }
 });
 
+// Detectar dialecto SQL del contenido
+function detectSQLDialect(content) {
+    const c = content.toLowerCase();
+    if (c.includes('identity(') || c.includes('nvarchar') || c.includes('datetime2') || c.includes('uniqueidentifier') || c.includes('smalldatetime') || c.includes('sql_variant')) return 'sqlserver';
+    if (c.includes('autoincrement') || c.includes('integer primary key')) return 'sqlite';
+    if (c.includes('serial') || c.includes('bigserial') || c.includes('jsonb') || c.includes('bytea') || c.includes('tsvector')) return 'postgres';
+    if (c.includes('auto_increment') || c.includes('engine=') || c.includes('charset=')) return 'mysql';
+    return 'mysql';
+}
+
 // Parser de archivos SQL mejorado
 function parseSQL(content) {
     const tables = [];
@@ -139,7 +149,7 @@ function parseSQL(content) {
                     type: columnType,
                     nullable: !constraints.toUpperCase().includes('NOT NULL'),
                     primaryKey: constraints.toUpperCase().includes('PRIMARY KEY'),
-                    autoIncrement: constraints.toUpperCase().includes('AUTO_INCREMENT')
+                    autoIncrement: constraints.toUpperCase().includes('AUTO_INCREMENT') || constraints.toUpperCase().includes('IDENTITY')
                 });
             }
         }
@@ -210,7 +220,7 @@ function parseSQL(content) {
         });
     }
 
-    return { tables, relations, views, triggers, procedures };
+    return { tables, relations, views, triggers, procedures, dialect: detectSQLDialect(content), type: 'sql' };
 }
 
 // Parser de archivos JSON (esquemas)
@@ -325,7 +335,7 @@ function parseJSON(content) {
             }
         }
 
-        return { tables, relations };
+        return { tables, relations, type: 'json' };
     } catch (error) {
         throw new Error('JSON inválido o no contiene estructura de base de datos válida');
     }
@@ -358,7 +368,7 @@ function parseXLSX(filePath) {
             }
         });
 
-        return { tables, relations };
+        return { tables, relations, type: 'excel' };
     } catch (error) {
         throw new Error('Error al leer el archivo Excel: ' + error.message);
     }
@@ -867,8 +877,10 @@ app.post('/upload', upload.single('file'), async (req, res) => {
             schema = parseSQL(content);
         } else if (fileExtension === '.json') {
             schema = parseJSON(content);
+            schema.type = schema.type || 'json';
         } else if (fileExtension === '.xlsx') {
             schema = parseXLSX(filePath);
+            schema.type = schema.type || 'excel';
         } else {
             fs.unlinkSync(filePath); // Eliminar archivo no soportado
             return res.status(400).json({
@@ -915,6 +927,81 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         res.status(500).json({
             error: error.message || 'Error al procesar el archivo'
         });
+    }
+});
+
+// Endpoint para generar datos de prueba
+app.post('/generate-data', async (req, res) => {
+    try {
+        const { schema, config } = req.body;
+        
+        if (!schema || !schema.tables) {
+            return res.status(400).json({ error: 'Esquema con tablas es requerido' });
+        }
+
+        console.log('Generando datos de prueba...');
+
+        // En Vercel, reenviar a función serverless si aplica
+        if (process.env.VERCEL) {
+            // Podría reutilizarse el mismo endpoint serverless con un flag; por ahora, fallback a Node simple
+            return res.status(501).json({ error: 'Generación de datos no disponible en Vercel serverless aún.' });
+        }
+
+        const { spawn } = require('child_process');
+        const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+        
+        const payload = JSON.stringify({ schema, config: config || {} });
+        
+        const pythonProcess = spawn(pythonCmd, ['python_analyzer/main.py', '--generate-data'], {
+            cwd: __dirname,
+            stdio: ['pipe', 'pipe', 'pipe']
+        });
+
+        let output = '';
+        let errorOutput = '';
+
+        pythonProcess.stdin.write(payload);
+        pythonProcess.stdin.end();
+
+        pythonProcess.stdout.on('data', (data) => {
+            output += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+            errorOutput += data.toString();
+        });
+
+        pythonProcess.on('close', (code) => {
+            if (code !== 0) {
+                console.error('Python data generation error:', errorOutput);
+                return res.status(500).json({
+                    error: 'Error en la generación de datos: ' + errorOutput
+                });
+            }
+
+            try {
+                const result = JSON.parse(output);
+                if (result.success) {
+                    res.json(result.data);
+                } else {
+                    res.status(400).json({ error: result.error || 'Error en generación de datos' });
+                }
+            } catch (parseError) {
+                console.error('JSON parse error:', parseError);
+                res.status(500).json({ error: 'Error al procesar resultados de generación de datos' });
+            }
+        });
+
+        pythonProcess.on('error', (error) => {
+            console.error('Python process error:', error);
+            res.status(500).json({
+                error: 'Error al ejecutar Python. Asegúrate de tener Python instalado.'
+            });
+        });
+
+    } catch (error) {
+        console.error('Error en generación de datos:', error);
+        res.status(500).json({ error: error.message || 'Error al generar datos de prueba' });
     }
 });
 
