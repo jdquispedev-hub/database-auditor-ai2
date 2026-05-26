@@ -19,104 +19,101 @@ try {
 }
 const userId = sessionStorage.getItem('ds_user') || 'demo_user';
 
+const isUuid = (id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+function obtenerDocumentosSimulados() {
+    return [
+        {
+            id: 'sim_1',
+            nombre: 'farmaciaDB_auditoria_final',
+            acceso: 'Personal',
+            fecha_mod: new Date().toISOString(),
+            contenido: {
+                documentation: '# Auditoría de FarmaciaDB\nAnálisis heurístico completado con 100% de normalización.',
+                pdfUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+            }
+        },
+        {
+            id: 'sim_2',
+            nombre: 'tienda_ventas_nosql_doc',
+            acceso: 'Personal',
+            fecha_mod: new Date(Date.now() - 86400000).toISOString(),
+            contenido: {
+                documentation: '# Análisis NoSQL de Ventas\nEstructuras de colecciones indexadas de forma óptima.',
+                pdfUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+            }
+        }
+    ];
+}
+
+function obtenerPapeleraSimulada() {
+    return [
+        {
+            id: 'trash_sim_1',
+            nombre: 'borrador_esquema_antiguo',
+            acceso: 'Personal',
+            fecha_eliminacion: new Date(Date.now() - 172800000).toISOString(),
+            contenido: { documentation: 'Borrador antiguo' }
+        }
+    ];
+}
+
 function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':'&gt;'); }
 
 const timeoutPromise = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms));
 
 async function cargarDocumentos() {
+    if (!isUuid(userId)) {
+        console.warn("userId no es un UUID válido. Cargando documentos simulados.");
+        return obtenerDocumentosSimulados();
+    }
+
     let data = [];
     try {
         const fetchPromise = supabaseClient.from('documentos').select('*').eq('usuario_id', userId).order('created_at', { ascending: false });
-        const result = await Promise.race([fetchPromise, timeoutPromise(1500)]);
+        const result = await Promise.race([fetchPromise, timeoutPromise(5000)]);
         if (result.error) console.error("Error al cargar documentos:", result.error);
         data = result.data || [];
     } catch (e) {
-        console.warn("Carga de documentos de Supabase excedió tiempo límite, cargando fallback.");
+        console.warn("Carga de documentos de Supabase excedió tiempo límite o falló.");
     }
     
-    // Salvaguarda: Si no se encuentran documentos específicos del usuario, traer todos los registros de la tabla
-    if (!data || data.length === 0) {
-        try {
-            const fetchAllPromise = supabaseClient.from('documentos').select('*').order('created_at', { ascending: false });
-            const resultAll = await Promise.race([fetchAllPromise, timeoutPromise(1000)]);
-            if (!resultAll.error && resultAll.data && resultAll.data.length > 0) {
-                data = resultAll.data;
-            }
-        } catch (e) {
-            console.warn("Salvaguarda de todos los documentos falló o tardó demasiado.");
-        }
-    }
-    
-    // Fallback de Alta Fidelidad: Si no hay registros en Supabase, cargar documentos simulados realistas para que nunca esté vacío
-    if (!data || data.length === 0) {
-        data = [
-            {
-                id: 'sim_1',
-                nombre: 'farmaciaDB_auditoria_final',
-                acceso: 'Personal',
-                fecha_mod: new Date().toISOString(),
-                contenido: {
-                    documentation: '# Auditoría de FarmaciaDB\nAnálisis heurístico completado con 100% de normalización.',
-                    pdfUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
-                }
-            },
-            {
-                id: 'sim_2',
-                nombre: 'tienda_ventas_nosql_doc',
-                acceso: 'Personal',
-                fecha_mod: new Date(Date.now() - 86400000).toISOString(),
-                contenido: {
-                    documentation: '# Análisis NoSQL de Ventas\nEstructuras de colecciones indexadas de forma óptima.',
-                    pdfUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
-                }
-            }
-        ];
-    }
     return data;
 }
+
 async function cargarPapelera() {
+    if (!isUuid(userId)) {
+        console.warn("userId no es un UUID válido. Cargando papelera simulada.");
+        return obtenerPapeleraSimulada();
+    }
+
     let data = [];
     try {
         const fetchPromise = supabaseClient.from('papelera').select('*').eq('usuario_id', userId);
-        const result = await Promise.race([fetchPromise, timeoutPromise(1500)]);
+        const result = await Promise.race([fetchPromise, timeoutPromise(5000)]);
         if (result.error) console.error("Error al cargar papelera:", result.error);
         data = result.data || [];
     } catch (e) {
-        console.warn("Carga de papelera de Supabase excedió tiempo límite, cargando fallback.");
+        console.warn("Carga de papelera de Supabase excedió tiempo límite o falló.");
     }
     
-    // Salvaguarda Papelera: Traer todo si no se encuentra por usuario_id
-    if (!data || data.length === 0) {
-        try {
-            const fetchAllPromise = supabaseClient.from('papelera').select('*');
-            const resultAll = await Promise.race([fetchAllPromise, timeoutPromise(1000)]);
-            if (!resultAll.error && resultAll.data && resultAll.data.length > 0) {
-                data = resultAll.data;
-            }
-        } catch (e) {
-            console.warn("Salvaguarda papelera falló o tardó demasiado.");
-        }
-    }
-    
-    // Fallback Papelera: Si está vacía, cargar un borrador simulado para demostración
-    if (!data || data.length === 0) {
-        data = [
-            {
-                id: 'trash_sim_1',
-                nombre: 'borrador_esquema_antiguo',
-                acceso: 'Personal',
-                fecha_eliminacion: new Date(Date.now() - 172800000).toISOString(),
-                contenido: { documentation: 'Borrador antiguo' }
-            }
-        ];
-    }
     return data;
 }
+
 async function moverAPapelera(id, nombre, acceso, contenido) {
+    if (!isUuid(userId)) {
+        alert("Operación no permitida en modo de demostración.");
+        return;
+    }
     await supabaseClient.from('papelera').insert([{ usuario_id: userId, nombre, acceso, fecha_eliminacion: new Date().toISOString(), contenido }]);
     await supabaseClient.from('documentos').delete().eq('id', id);
 }
+
 async function restaurarDocumento(papId, nombre, acceso, contenido) {
+    if (!isUuid(userId)) {
+        alert("Operación no permitida en modo de demostración.");
+        return;
+    }
     await supabaseClient.from('documentos').insert([{ usuario_id: userId, nombre, acceso, fecha_mod: new Date().toISOString(), contenido }]);
     await supabaseClient.from('papelera').delete().eq('id', papId);
 }
@@ -148,7 +145,7 @@ async function renderDocumentosActivos() {
                 fechaModStr = dateObj.toLocaleDateString();
             }
         }
-        html += `<tr><td>${escapeHtml(doc.nombre)}</td><td>${escapeHtml(doc.acceso)}</td><td>${fechaModStr}</td><td class="action-buttons"><button class="view-doc" data-idx="${idx}">Ver</button><button class="edit-doc" data-idx="${idx}">Editar</button><button class="delete-doc" data-idx="${idx}">Eliminar</button></td></tr>`;
+        html += `<tr><td>${escapeHtml(doc.nombre)}</td><td>${escapeHtml(doc.acceso)}</td><td>${fechaModStr}</td><td class="action-buttons"><button class="view-doc" data-idx="${idx}">Ver</button><button class="edit-doc" data-idx="${idx}">Editar</button><button class="share-doc" data-idx="${idx}">Compartir</button><button class="delete-doc" data-idx="${idx}">Eliminar</button></td></tr>`;
     });
     html += `</tbody></table></div>`;
     container.innerHTML = html;
@@ -214,6 +211,12 @@ async function renderDocumentosActivos() {
             await supabase.from('documentos').update({ nombre: nuevo.trim() }).eq('id', doc.id);
             renderTodo();
         }
+    }));
+
+    document.querySelectorAll('.share-doc').forEach(btn => btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx);
+        const doc = activeDocsList[idx];
+        mostrarModalCompartir(doc);
     }));
 
     document.querySelectorAll('.delete-doc').forEach(btn => btn.addEventListener('click', async () => {
@@ -288,4 +291,141 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
     sessionStorage.clear();
     window.location.href = '/';
 });
+
+async function mostrarModalCompartir(doc) {
+    if (doc.id.startsWith('sim_') || !isUuid(userId)) {
+        alert("Esta función requiere estar autenticado con una cuenta real y tener documentos guardados en Supabase.");
+        return;
+    }
+    
+    const modalBody = document.getElementById('modalBody');
+    modalBody.innerHTML = '<div class="loading">Cargando datos para compartir...</div>';
+    document.getElementById('docModal').style.display = 'flex';
+    
+    try {
+        // 1. Obtener todos los perfiles de usuario
+        const { data: perfiles, error: perfError } = await supabaseClient
+            .from('perfiles')
+            .select('id, nombres, apellidos')
+            .neq('id', userId); // Excluir al usuario actual
+            
+        if (perfError) throw perfError;
+        
+        // 2. Obtener usuarios con acceso actual al documento
+        const { data: compartidos, error: compError } = await supabaseClient
+            .from('compartidos')
+            .select('id, usuario_compartido_id')
+            .eq('documento_id', doc.id);
+            
+        if (compError) throw compError;
+        
+        // Renderizar la UI del modal de compartir
+        let userOptions = perfiles.map(p => `<option value="${p.id}">${escapeHtml(p.nombres)} ${escapeHtml(p.apellidos)}</option>`).join('');
+        if (perfiles.length === 0) {
+            userOptions = `<option value="">No hay otros usuarios registrados</option>`;
+        }
+        
+        const compartidosConNombre = compartidos.map(c => {
+            const perfil = perfiles.find(p => p.id === c.usuario_compartido_id);
+            return {
+                id: c.id,
+                nombreCompleto: perfil ? `${perfil.nombres} ${perfil.apellidos}` : 'Usuario desconocido'
+            };
+        });
+        
+        let sharedListHtml = compartidosConNombre.map(c => `
+            <div class="shared-user-item">
+                <span class="shared-user-name">👤 ${escapeHtml(c.nombreCompleto)}</span>
+                <button class="revoke-share-btn" data-share-id="${c.id}">Quitar acceso</button>
+            </div>
+        `).join('');
+        
+        if (compartidosConNombre.length === 0) {
+            sharedListHtml = '<div class="empty-message" style="padding:15px; font-size:0.85rem;">Este documento aún no ha sido compartido.</div>';
+        }
+        
+        modalBody.innerHTML = `
+            <div class="share-modal-container">
+                <h3 class="share-modal-title">Compartir Documento</h3>
+                <p style="margin-bottom: 20px; font-size: 0.95rem; color: #9ca3af;">
+                    Documento: <strong style="color: #f3f4f6;">${escapeHtml(doc.nombre)}</strong>
+                </p>
+                
+                <div class="share-form">
+                    <select id="shareUserSelect" class="share-select" ${perfiles.length === 0 ? 'disabled' : ''}>
+                        ${userOptions}
+                    </select>
+                    <button id="btnConcederAcceso" class="share-submit-btn" ${perfiles.length === 0 ? 'disabled' : ''}>
+                        Conceder Acceso
+                    </button>
+                </div>
+                
+                <h4 class="shared-list-title">Usuarios con acceso:</h4>
+                <div class="shared-users-list">
+                    ${sharedListHtml}
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('btnConcederAcceso')?.addEventListener('click', async () => {
+            const selectEl = document.getElementById('shareUserSelect');
+            const targetUserId = selectEl.value;
+            if (!targetUserId) return;
+            
+            const btn = document.getElementById('btnConcederAcceso');
+            btn.disabled = true;
+            btn.innerText = 'Compartiendo...';
+            
+            try {
+                const { error } = await supabaseClient.from('compartidos').insert([
+                    {
+                        documento_id: doc.id,
+                        usuario_compartido_id: targetUserId
+                    }
+                ]);
+                if (error) {
+                    if (error.code === '23505') {
+                        alert('Este documento ya está compartido con ese usuario.');
+                    } else {
+                        throw error;
+                    }
+                } else {
+                    mostrarModalCompartir(doc);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error al compartir: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Conceder Acceso';
+            }
+        });
+        
+        document.querySelectorAll('.revoke-share-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const shareId = btn.dataset.shareId;
+                if (!shareId) return;
+                
+                btn.disabled = true;
+                btn.innerText = 'Quitando...';
+                
+                try {
+                    const { error } = await supabaseClient.from('compartidos').delete().eq('id', shareId);
+                    if (error) throw error;
+                    mostrarModalCompartir(doc);
+                } catch (err) {
+                    console.error(err);
+                    alert('Error al revocar acceso: ' + err.message);
+                    btn.disabled = false;
+                    btn.innerText = 'Quitar acceso';
+                }
+            });
+        });
+        
+    } catch (err) {
+        console.error("Error al cargar modal de compartir:", err);
+        modalBody.innerHTML = `<div class="empty-message" style="color: #f87171;">⚠️ Error al cargar: ${escapeHtml(err.message)}</div>`;
+    }
+}
+
 renderTodo();

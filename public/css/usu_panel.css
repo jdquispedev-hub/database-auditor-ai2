@@ -270,3 +270,121 @@
 .close-modal:hover {
     color: #f87171;
 }
+
+/* Compartir */
+.action-buttons button.share-doc {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.action-buttons button.share-doc:hover {
+    background: #10b981;
+    color: white;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+/* Share Modal Layout */
+.share-modal-container {
+    color: #f3f4f6;
+    font-family: 'Outfit', sans-serif;
+}
+
+.share-modal-title {
+    font-size: 1.4rem;
+    color: #a78bfa;
+    margin-bottom: 20px;
+    font-weight: 600;
+}
+
+.share-form {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    align-items: center;
+}
+
+.share-select {
+    flex: 1;
+    background: #1f2937;
+    border: 1px solid #374151;
+    color: #f3f4f6;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem;
+    outline: none;
+    cursor: pointer;
+}
+
+.share-select option {
+    background: #111827;
+}
+
+.share-submit-btn {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.share-submit-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.shared-list-title {
+    font-size: 1rem;
+    color: #9ca3af;
+    margin-bottom: 12px;
+    font-weight: 500;
+}
+
+.shared-users-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 180px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.15);
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid #2d3a5e;
+}
+
+.shared-user-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.shared-user-name {
+    font-size: 0.9rem;
+    color: #e5e7eb;
+}
+
+.revoke-share-btn {
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.revoke-share-btn:hover {
+    background: #ef4444;
+    color: white;
+}
+

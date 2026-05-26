@@ -2,6 +2,15 @@
 let selectedFile = null;
 let currentResults = null;
 
+const SUPABASE_URL = 'https://anzravhguhsdfnjfsjcm.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_sIB2jrePXiRBfBidFDFRjA_JeYe5cfP';
+let supabaseClient;
+try {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+} catch (e) {
+    console.error("Error al inicializar Supabase Client:", e);
+}
+
 // Elementos del DOM
 const fileInput = document.getElementById('fileInput');
 const uploadArea = document.getElementById('uploadArea');
@@ -1891,8 +1900,9 @@ async function saveDocumentToSupabase() {
         return;
     }
     const userId = sessionStorage.getItem('ds_user');
-    if (!userId) {
-        alert('Sesión de usuario no encontrada.');
+    const isUuid = (id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (!userId || !isUuid(userId)) {
+        alert('Sesión de usuario no válida o de demostración. Inicia sesión con una cuenta real para guardar en Supabase.');
         return;
     }
 
@@ -1906,10 +1916,6 @@ async function saveDocumentToSupabase() {
     saveBtn.innerHTML = '⚡ Subiendo PDF a Storage...';
 
     try {
-        const SUPABASE_URL = 'https://anzravhguhsdfnjfsjcm.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_sIB2jrePXiRBfBidFDFRjA_JeYe5cfP';
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
         // Generar PDF como Blob
         let pdfUrl = '';
         const element = document.getElementById('documentationContent');
@@ -2017,15 +2023,16 @@ async function saveDocumentToSupabase() {
                 });
 
             if (uploadError) {
-                throw new Error('Error al subir al Storage de Supabase (crea el bucket "documentos_pdf" en tu consola de Supabase primero): ' + uploadError.message);
+                console.warn('Error al subir al Storage de Supabase. El documento se guardará sin PDF:', uploadError.message);
+                pdfUrl = '';
+            } else {
+                // Obtener la URL pública del PDF subido
+                const { data: publicUrlData } = supabaseClient.storage
+                    .from('documentos_pdf')
+                    .getPublicUrl(filePath);
+
+                pdfUrl = publicUrlData.publicUrl;
             }
-
-            // Obtener la URL pública del PDF subido
-            const { data: publicUrlData } = supabaseClient.storage
-                .from('documentos_pdf')
-                .getPublicUrl(filePath);
-
-            pdfUrl = publicUrlData.publicUrl;
         }
 
         // Generar contenido en base a los resultados actuales
@@ -2048,7 +2055,11 @@ async function saveDocumentToSupabase() {
 
         if (error) throw error;
 
-        alert('¡Documentación y PDF guardados y subidos con éxito en Supabase!');
+        if (pdfUrl) {
+            alert('¡Documentación y PDF guardados y subidos con éxito en Supabase!');
+        } else {
+            alert('¡Documentación guardada con éxito en Supabase! (Nota: El PDF no pudo subirse, asegúrate de crear el bucket "documentos_pdf" en tu consola de Supabase).');
+        }
     } catch (err) {
         console.error('Error al guardar en Supabase:', err);
         alert('Error: ' + err.message);

@@ -19,14 +19,20 @@ try {
 const userId = sessionStorage.getItem('ds_user') || 'demo_user';
 let chartInstance = null;
 
+const isUuid = (id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
 const timeoutPromise = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms));
 
 async function cargarDocumentos() {
+    if (!isUuid(userId)) {
+        console.warn("userId no es un UUID válido. Usando datos vacíos para activar simulación.");
+        return [];
+    }
     try {
         const fetchPromise = supabaseClient.from('documentos').select('*').eq('usuario_id', userId);
         const result = await Promise.race([
             fetchPromise,
-            timeoutPromise(1500)
+            timeoutPromise(5000)
         ]);
         if (result.error) {
             console.error(result.error);
@@ -34,7 +40,7 @@ async function cargarDocumentos() {
         }
         return result.data || [];
     } catch (e) {
-        console.warn("Carga de Supabase excedió el tiempo límite (1.5s) o falló, usando datos vacíos para activar simulación.");
+        console.warn("Carga de Supabase excedió el tiempo límite (5s) o falló, usando datos vacíos para activar simulación.");
         return [];
     }
 }
