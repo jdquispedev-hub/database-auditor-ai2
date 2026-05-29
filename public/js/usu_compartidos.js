@@ -268,7 +268,6 @@ async function renderCompartidosConmigo() {
             let modalHtml = '';
             if (contenido.pdfUrl || contenido.pdfBase64) {
                 const fileLink = contenido.pdfUrl || contenido.pdfBase64;
-                const isStorage = !!contenido.pdfUrl;
                 modalHtml = `
                     <div class="pdf-modal-view" style="color: #fff; font-family: 'Outfit', sans-serif;">
                         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
@@ -288,16 +287,12 @@ async function renderCompartidosConmigo() {
                         
                         <!-- Visor de PDF Integrado en Tiempo Real -->
                         <div style="border-radius: 12px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.15); background: #1e1e2e; margin-bottom: 15px; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);">
-                            <iframe src="${fileLink}" style="width: 100%; height: 500px; border: none; display: block;"></iframe>
+                            <iframe src="${fileLink}" style="width: 100%; height: 550px; border: none; display: block;"></iframe>
                         </div>
-
-                        <hr style="border: 1px solid rgba(255,255,255,0.1); margin: 20px 0;">
-                        <h4 style="margin-bottom: 8px; color: #a78bfa;">Metadatos del Esquema (JSON):</h4>
-                        <pre style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 8px; overflow: auto; max-height: 150px; color: #9ca3af; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.1); font-family: monospace;">${JSON.stringify({ ...contenido, pdfBase64: contenido.pdfBase64 ? '[PDF Base64 Content]' : undefined }, null, 2)}</pre>
                     </div>
                 `;
             } else {
-                modalHtml = `<pre style="color: #fff;">${JSON.stringify(contenido, null, 2)}</pre>`;
+                modalHtml = `<pre style="color: #fff;">No hay PDF disponible para este documento.</pre>`;
             }
             document.getElementById('modalBody').innerHTML = modalHtml;
             document.getElementById('docModal').style.display = 'flex';

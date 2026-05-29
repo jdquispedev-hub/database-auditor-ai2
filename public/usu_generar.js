@@ -1752,33 +1752,21 @@ async function downloadAnomaliesPdf() {
             </div>`;
 
         const wrapper = document.createElement('div');
-        wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;';
+        wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;width:210mm;background:#ffffff;padding:15mm 20mm;box-sizing:border-box;';
         wrapper.innerHTML = fullHtml;
         document.body.appendChild(wrapper);
 
-        const canvas = await html2canvas(wrapper.firstElementChild, {
-            scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff'
-        });
+        // Configurar opciones de html2pdf
+        const opt = {
+            margin:       [10, 10, 10, 10], // Margen de 10mm alrededor de cada página
+            filename:     `reporte_anomalias_${Date.now()}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] } // Salto de página inteligente automático
+        };
 
-        const imgData = canvas.toDataURL('image/png');
-        let jsPDF = window.jsPDF || (window.jspdf && window.jspdf.jsPDF);
-        if (!jsPDF) throw new Error('La librería jsPDF no está cargada.');
-
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const imgWidth = 190, pageHeight = 287;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        let heightLeft = imgHeight, position = 10;
-
-        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
-        heightLeft -= (pageHeight - 10);
-        while (heightLeft >= 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-        }
-
-        pdf.save(`reporte_anomalias_${Date.now()}.pdf`);
+        await html2pdf().set(opt).from(wrapper.firstElementChild).save();
         document.body.removeChild(wrapper);
 
     } catch (error) {
@@ -1920,98 +1908,80 @@ async function saveDocumentToSupabase() {
         let pdfUrl = '';
         const element = document.getElementById('documentationContent');
         if (element) {
-            const canvas = await html2canvas(element, {
-                scale: 2, // Súper nítido y en alta resolución
-                useCORS: true,
-                backgroundColor: '#ffffff',
-                onclone: (clonedDoc) => {
-                    const clonedElement = clonedDoc.getElementById('documentationContent');
-                    if (clonedElement) {
-                        clonedElement.style.color = '#1f2937';
-                        clonedElement.style.backgroundColor = '#ffffff';
-                        clonedElement.style.padding = '15mm 20mm'; // Margen interno del contenedor
-                        
-                        // Forzar a todos los elementos internos a tener colores legibles en fondo blanco
-                        clonedElement.querySelectorAll('*').forEach(el => {
-                            el.style.backgroundColor = 'transparent';
-                            if (el.tagName === 'H1' || el.tagName === 'H2' || el.tagName === 'H3' || el.tagName === 'H4') {
-                                el.style.color = '#1e3a8a'; // Azul corporativo elegante
-                                el.style.borderBottom = '2px solid #e5e7eb';
-                                el.style.paddingBottom = '6px';
-                                el.style.marginTop = '40px'; // Empujar títulos hacia abajo para evitar cortes a la mitad
-                                el.style.marginBottom = '20px';
-                                el.style.fontWeight = '700';
-                            } else if (el.tagName === 'P') {
-                                el.style.color = '#374151';
-                                el.style.lineHeight = '1.7'; // Espaciado cómodo entre líneas
-                                el.style.marginBottom = '18px';
-                            } else if (el.tagName === 'TH') {
-                                el.style.color = '#111827';
-                                el.style.backgroundColor = '#f3f4f6';
-                                el.style.borderColor = '#d1d5db';
-                                el.style.fontWeight = '600';
-                                el.style.padding = '10px';
-                            } else if (el.tagName === 'TD') {
-                                el.style.color = '#374151';
-                                el.style.borderColor = '#e5e7eb';
-                                el.style.padding = '10px';
-                            } else if (el.tagName === 'A') {
-                                el.style.color = '#2563eb';
-                            } else if (el.tagName === 'PRE' || el.tagName === 'CODE') {
-                                el.style.backgroundColor = '#f8fafc';
-                                el.style.color = '#0f172a';
-                                el.style.borderColor = '#e2e8f0';
-                                el.style.padding = '12px';
-                                el.style.borderRadius = '6px';
-                            } else if (el.tagName === 'LI') {
-                                el.style.color = '#374151';
-                                el.style.marginBottom = '8px';
-                                el.style.lineHeight = '1.6';
-                            } else {
-                                el.style.color = '#374151';
-                            }
-                        });
-                    }
+            // Clonar y dar estilo al elemento para html2pdf
+            const clone = element.cloneNode(true);
+            clone.style.color = '#1f2937';
+            clone.style.backgroundColor = '#ffffff';
+            clone.style.padding = '15mm 20mm';
+            clone.style.width = '210mm'; // Ancho de A4 para garantizar proporciones exactas
+            clone.style.boxSizing = 'border-box';
+            
+            // Forzar a todos los elementos internos a tener colores legibles en fondo blanco
+            clone.querySelectorAll('*').forEach(el => {
+                el.style.backgroundColor = 'transparent';
+                if (el.tagName === 'H1' || el.tagName === 'H2' || el.tagName === 'H3' || el.tagName === 'H4') {
+                    el.style.color = '#1e3a8a'; // Azul corporativo elegante
+                    el.style.borderBottom = '2px solid #e5e7eb';
+                    el.style.paddingBottom = '6px';
+                    el.style.marginTop = '28px'; // Espaciado cómodo arriba
+                    el.style.marginBottom = '16px';
+                    el.style.fontWeight = '700';
+                    el.style.pageBreakAfter = 'avoid'; // Evitar títulos huérfanos al final de página
+                } else if (el.tagName === 'P') {
+                    el.style.color = '#374151';
+                    el.style.lineHeight = '1.7';
+                    el.style.marginBottom = '16px';
+                } else if (el.tagName === 'TABLE') {
+                    el.style.width = '100%';
+                    el.style.borderCollapse = 'collapse';
+                    el.style.marginBottom = '20px';
+                    el.style.pageBreakInside = 'avoid'; // Evitar romper la tabla entera si cabe en una página
+                } else if (el.tagName === 'TR') {
+                    el.style.pageBreakInside = 'avoid'; // ¡Crucial! Evita cortar filas de tabla a la mitad
+                } else if (el.tagName === 'TH') {
+                    el.style.color = '#111827';
+                    el.style.backgroundColor = '#f3f4f6';
+                    el.style.border = '1px solid #d1d5db';
+                    el.style.fontWeight = '600';
+                    el.style.padding = '10px';
+                    el.style.fontSize = '0.9rem';
+                } else if (el.tagName === 'TD') {
+                    el.style.color = '#374151';
+                    el.style.border = '1px solid #e5e7eb';
+                    el.style.padding = '10px';
+                    el.style.fontSize = '0.85rem';
+                } else if (el.tagName === 'A') {
+                    el.style.color = '#2563eb';
+                } else if (el.tagName === 'PRE' || el.tagName === 'CODE') {
+                    el.style.backgroundColor = '#f8fafc';
+                    el.style.color = '#0f172a';
+                    el.style.border = '1px solid #e2e8f0';
+                    el.style.padding = '12px';
+                    el.style.borderRadius = '6px';
+                    el.style.fontSize = '0.85rem';
+                    el.style.whiteSpace = 'pre-wrap';
+                    el.style.wordBreak = 'break-all';
+                    el.style.pageBreakInside = 'avoid'; // Evitar cortar fragmentos de código
+                } else if (el.tagName === 'LI') {
+                    el.style.color = '#374151';
+                    el.style.marginBottom = '8px';
+                    el.style.lineHeight = '1.6';
+                } else {
+                    el.style.color = '#374151';
                 }
             });
-            const imgData = canvas.toDataURL('image/jpeg', 0.75); // Comprimir la imagen al 75% de calidad (reduce el peso un 85% sin perder nitidez)
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            
-            const imgWidth = 195; // Ancho casi completo para texto grande y legible
-            const marginX = 7.5;  // Margen lateral mínimo de 7.5mm
-            const marginY = 10;   // Margen superior inicial de 10mm
-            const bottomMargin = 15; // Margen inferior real de 15mm
-            const visibleHeight = 297 - marginY - bottomMargin; // 272mm de altura útil real de contenido
-            const overlapCorrection = 11; // Corrección exacta de 11mm para eliminar la repetición de las 3 líneas
-            
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-            let heightLeft = imgHeight;
-            let position = marginY;
 
-            // Página 1
-            pdf.addImage(imgData, 'JPEG', marginX, position, imgWidth, imgHeight, undefined, 'FAST');
-            
-            // Máscara blanca para forzar un margen inferior limpio de 15mm
-            pdf.setFillColor(255, 255, 255);
-            pdf.rect(0, 297 - bottomMargin, 210, bottomMargin, 'F');
-            
-            heightLeft -= visibleHeight;
+            // Configurar opciones de html2pdf
+            const opt = {
+                margin:       [10, 10, 10, 10], // Margen de 10mm alrededor de cada página
+                filename:     `${nombre.trim()}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, logging: false },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] } // Salto de página inteligente automático
+            };
 
-            while (heightLeft > 0) {
-                // Desplazar la imagen hacia arriba un extra de 11mm para saltarse las líneas repetidas
-                position = marginY - (imgHeight - heightLeft) - overlapCorrection; 
-                pdf.addPage();
-                pdf.addImage(imgData, 'JPEG', marginX, position, imgWidth, imgHeight, undefined, 'FAST');
-                
-                // Aplicar máscara blanca al final de cada página adicional
-                pdf.setFillColor(255, 255, 255);
-                pdf.rect(0, 297 - bottomMargin, 210, bottomMargin, 'F');
-                
-                heightLeft -= (visibleHeight + overlapCorrection);
-            }
-            
-            const pdfBlob = pdf.output('blob');
+            const pdfBlob = await html2pdf().set(opt).from(clone).output('blob');
             const filePath = `user_${userId}/${Date.now()}_documentacion.pdf`;
 
             // Subir a la sección de Storage de Supabase

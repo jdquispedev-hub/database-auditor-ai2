@@ -21,6 +21,380 @@ const userId = sessionStorage.getItem('ds_user') || 'demo_user';
 
 const isUuid = (id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
+function limpiarMarkdownFences(text) {
+    if (!text) return '';
+    let clean = text.trim();
+    const markdownMatch = clean.match(/```(?:markdown|html)?\s?([\s\S]*?)```/i);
+    if (markdownMatch && markdownMatch[1]) {
+        clean = markdownMatch[1];
+    }
+    return clean.trim();
+}
+
+async function abrirModalVisualizador(doc) {
+    let contenido = doc.contenido || {};
+    if (typeof contenido === 'string') {
+        try {
+            contenido = JSON.parse(contenido);
+        } catch (e) {
+            console.error("Error al parsear contenido:", e);
+            contenido = {};
+        }
+    }
+
+    const docName = doc.nombre;
+    const docId = doc.id;
+    const fileLink = contenido.pdfUrl || contenido.pdfBase64 || '';
+    const documentationTextRaw = contenido.documentation || '';
+    const documentationText = limpiarMarkdownFences(documentationTextRaw);
+
+    // Inyectar estilos para el toolbar de Quill en Modo Oscuro si no existen
+    if (!document.getElementById('quill-dark-theme-styles')) {
+        const style = document.createElement('style');
+        style.id = 'quill-dark-theme-styles';
+        style.innerHTML = `
+            .ql-toolbar.ql-snow {
+                background: #1e1e2e !important;
+                border: 1px solid rgba(255, 255, 255, 0.15) !important;
+                border-top-left-radius: 12px;
+                border-top-right-radius: 12px;
+                padding: 10px !important;
+            }
+            .ql-toolbar.ql-snow .ql-stroke {
+                stroke: #e5e7eb !important;
+            }
+            .ql-toolbar.ql-snow .ql-fill {
+                fill: #e5e7eb !important;
+            }
+            .ql-toolbar.ql-snow .ql-picker {
+                color: #e5e7eb !important;
+            }
+            .ql-toolbar.ql-snow .ql-picker-options {
+                background-color: #1e1e2e !important;
+                border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            }
+            .ql-container.ql-snow {
+                background: #1e1e2e !important;
+                border: 1px solid rgba(255, 255, 255, 0.15) !important;
+                border-top: none !important;
+                border-bottom-left-radius: 12px;
+                border-bottom-right-radius: 12px;
+                color: #f3f4f6 !important;
+                font-family: 'Outfit', sans-serif !important;
+                font-size: 0.95rem;
+                height: 480px;
+            }
+            .ql-editor {
+                min-height: 400px;
+                line-height: 1.7;
+            }
+            .ql-editor h1, .ql-editor h2, .ql-editor h3, .ql-editor h4 {
+                color: #a78bfa !important;
+                font-weight: 700;
+                margin-top: 20px;
+                margin-bottom: 10px;
+            }
+            .ql-editor p {
+                margin-bottom: 12px;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    const modalBody = document.getElementById('modalBody');
+
+    // Función para renderizar la vista de sólo lectura (PDF limpio a pantalla completa sin barra lateral)
+    function renderVistaLectura() {
+        // Siempre limpiar el fragmento # de la URL base y añadir parámetros frescos + cache-buster
+        const fileLinkBase = fileLink ? fileLink.split('#')[0] : '';
+        const cacheBuster = Date.now();
+        const fileLinkClean = fileLinkBase ? `${fileLinkBase}#toolbar=1&navpanes=0&view=FitH&t=${cacheBuster}` : '';
+        
+        modalBody.innerHTML = `
+            <div class="pdf-modal-view" style="color: #fff; font-family: 'Outfit', sans-serif;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                    <h3 style="font-size: 1.4rem; color: #a78bfa; margin: 0;">📄 ${escapeHtml(docName)}</h3>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="btnEditarContenido" class="action-btn" style="display: inline-flex; align-items: center; background: #10b981; color: #fff; padding: 10px 18px; border-radius: 30px; font-weight: 600; font-size: 0.85rem; border: none; cursor: pointer; transition: transform 0.2s;">
+                            ✏️ Editar Contenido
+                        </button>
+                        <a href="${fileLinkBase}" target="_blank" download="${docName}.pdf" class="action-btn" style="text-decoration: none; display: inline-flex; align-items: center; background: linear-gradient(135deg, #a78bfa, #5e6ad2); color: #fff; padding: 10px 18px; border-radius: 30px; font-weight: 600; font-size: 0.85rem; box-shadow: 0 4px 15px rgba(94, 106, 210, 0.4); border: none; cursor: pointer; transition: transform 0.2s;">
+                            📥 Descargar PDF
+                        </a>
+                    </div>
+                </div>
+                <p style="color: #9ca3af; margin-bottom: 15px; font-size: 0.9rem;">
+                    Este documento cuenta con un PDF almacenado de forma segura en Supabase Storage.
+                </p>
+                
+                <!-- Visor de PDF Integrado con visualización completa sin panel de miniaturas -->
+                <div style="border-radius: 12px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.15); background: #1e1e2e; margin-bottom: 15px; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);">
+                    <iframe id="pdfViewerIframe" src="${fileLinkClean}" style="width: 100%; height: 550px; border: none; display: block;" onload="this.style.opacity=1" onerror="document.getElementById('pdfViewerIframe').src=this.src"></iframe>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('btnEditarContenido')?.addEventListener('click', renderVistaEdicion);
+    }
+
+    // Función para renderizar el editor WYSIWYG con Quill.js (igual que Word)
+    function renderVistaEdicion() {
+        modalBody.innerHTML = `
+            <div class="edit-modal-view" style="color: #fff; font-family: 'Outfit', sans-serif;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                    <h3 style="font-size: 1.4rem; color: #a78bfa; margin: 0;">✏️ Editar Documentación: ${escapeHtml(docName)}</h3>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="btnGuardarEdicion" class="action-btn" style="display: inline-flex; align-items: center; background: #10b981; color: #fff; padding: 10px 18px; border-radius: 30px; font-weight: 600; font-size: 0.85rem; border: none; cursor: pointer; transition: transform 0.2s;">
+                            💾 Guardar Cambios
+                        </button>
+                        <button id="btnCancelarEdicion" class="action-btn" style="display: inline-flex; align-items: center; background: #6b7280; color: #fff; padding: 10px 18px; border-radius: 30px; font-weight: 600; font-size: 0.85rem; border: none; cursor: pointer; transition: transform 0.2s;">
+                            ❌ Cancelar
+                        </button>
+                    </div>
+                </div>
+                <p style="color: #9ca3af; margin-bottom: 15px; font-size: 0.9rem;">
+                    Edita el contenido del reporte a continuación. Puedes presionar el botón de <b>Tijeras (✂️)</b> en la barra de herramientas para insertar un <b>Salto de Página Manual</b> donde desees forzar una nueva página en el PDF.
+                </p>
+                <div id="editorQuill" style="height: 400px; margin-bottom: 20px;"></div>
+            </div>
+        `;
+
+        // Configurar opciones de barra de herramientas con botón personalizado 'pagebreak'
+        const toolbarOptions = [
+            [{ header: [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            [{ color: [] }, { background: [] }],
+            ['pagebreak'], // Botón personalizado para saltos de página
+            ['clean']
+        ];
+
+        // Definir icono SVG de tijeras y corte para el salto de página
+        const pagebreakIcon = `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2.5" fill="none" style="vertical-align: middle;"><line x1="3" y1="12" x2="21" y2="12" stroke-dasharray="4 4"></line><path d="M7 8l5-5 5 5M17 16l-5 5-5-5"></path></svg>`;
+
+        // Inicializar el editor Quill
+        const quill = new window.Quill('#editorQuill', {
+            modules: {
+                toolbar: {
+                    container: toolbarOptions,
+                    handlers: {
+                        pagebreak: function() {
+                            const range = this.quill.getSelection();
+                            if (range) {
+                                // Insertar el contenedor de salto de página que será interpretado por html2pdf.js
+                                const pageBreakHtml = `<div class="html2pdf__page-break" style="page-break-after: always; border-bottom: 2px dashed #a78bfa; margin: 20px 0; padding: 6px 0; text-align: center; color: #a78bfa; font-size: 0.85rem; font-family: 'Outfit', sans-serif; font-weight: 600; user-select: none;">✂️ [Salto de Página Manual] ✂️</div>`;
+                                this.quill.clipboard.dangerouslyPasteHTML(range.index, pageBreakHtml);
+                            }
+                        }
+                    }
+                }
+            },
+            theme: 'snow'
+        });
+
+        // Configurar el icono DESPUÉS de que Quill termine de renderizar el toolbar
+        setTimeout(() => {
+            const pagebreakBtn = document.querySelector('.ql-pagebreak');
+            if (pagebreakBtn) {
+                pagebreakBtn.innerHTML = pagebreakIcon;
+                pagebreakBtn.title = "Insertar Salto de Página Manual en el PDF";
+                pagebreakBtn.style.display = 'flex';
+                pagebreakBtn.style.alignItems = 'center';
+                pagebreakBtn.style.justifyContent = 'center';
+                pagebreakBtn.style.width = '28px';
+                pagebreakBtn.style.height = '28px';
+            }
+        }, 50);
+
+        // Cargar el contenido de forma robusta. Si es HTML lo carga directo; si es Markdown lo compila primero a HTML
+        let docHtml = '';
+        if (documentationText.trim().startsWith('<') || documentationText.trim().includes('</p>') || documentationText.trim().includes('</h1>')) {
+            docHtml = documentationText;
+        } else {
+            docHtml = window.marked.parse(documentationText);
+        }
+        quill.clipboard.dangerouslyPasteHTML(docHtml);
+
+        document.getElementById('btnCancelarEdicion')?.addEventListener('click', renderVistaLectura);
+        document.getElementById('btnGuardarEdicion')?.addEventListener('click', async () => {
+            const nuevoHtml = quill.root.innerHTML;
+            
+            const btnGuardar = document.getElementById('btnGuardarEdicion');
+            btnGuardar.disabled = true;
+            btnGuardar.innerText = '⚡ Regenerando PDF...';
+
+            try {
+                // 1. Crear contenedor temporal fuera de pantalla para evitar parpadeos y que sea visible a html2canvas
+                const wrapper = document.createElement('div');
+                wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;';
+                
+                const hiddenDiv = document.createElement('div');
+                hiddenDiv.id = 'tempDocumentationContent';
+                hiddenDiv.style.cssText = 'width:210mm;background:#ffffff;padding:15mm 20mm;box-sizing:border-box;color:#1f2937;';
+                hiddenDiv.innerHTML = nuevoHtml;
+                
+                wrapper.appendChild(hiddenDiv);
+                document.body.appendChild(wrapper);
+
+                // 2. Dar formato impecable al elemento clonado tal como lo hace usu_generar.js
+                hiddenDiv.querySelectorAll('*').forEach(el => {
+                    el.style.backgroundColor = 'transparent';
+                    
+                    // Si es la etiqueta de salto de página manual, la ocultamos por completo en el PDF impreso
+                    if (el.classList.contains('html2pdf__page-break')) {
+                        el.style.borderBottom = 'none';
+                        el.style.color = 'transparent';
+                        el.style.fontSize = '0px';
+                        el.style.height = '0px';
+                        el.style.margin = '0px';
+                        el.style.padding = '0px';
+                        el.style.lineHeight = '0px';
+                        return;
+                    }
+
+                    if (el.tagName === 'H1' || el.tagName === 'H2' || el.tagName === 'H3' || el.tagName === 'H4') {
+                        el.style.color = '#1e3a8a';
+                        el.style.borderBottom = '2px solid #e5e7eb';
+                        el.style.paddingBottom = '6px';
+                        el.style.marginTop = '28px';
+                        el.style.marginBottom = '16px';
+                        el.style.fontWeight = '700';
+                        el.style.pageBreakAfter = 'avoid';
+                    } else if (el.tagName === 'P') {
+                        el.style.color = '#374151';
+                        el.style.lineHeight = '1.7';
+                        el.style.marginBottom = '16px';
+                    } else if (el.tagName === 'TABLE') {
+                        el.style.width = '100%';
+                        el.style.borderCollapse = 'collapse';
+                        el.style.marginBottom = '20px';
+                        el.style.pageBreakInside = 'avoid';
+                    } else if (el.tagName === 'TR') {
+                        el.style.pageBreakInside = 'avoid';
+                    } else if (el.tagName === 'TH') {
+                        el.style.color = '#111827';
+                        el.style.backgroundColor = '#e5e7eb';
+                        el.style.border = '2px solid #374151';
+                        el.style.fontWeight = '700';
+                        el.style.padding = '10px';
+                        el.style.fontSize = '0.9rem';
+                    } else if (el.tagName === 'TD') {
+                        el.style.color = '#111827';
+                        el.style.border = '1.5px solid #6b7280';
+                        el.style.padding = '10px';
+                        el.style.fontSize = '0.85rem';
+                    } else if (el.tagName === 'A') {
+                        el.style.color = '#2563eb';
+                    } else if (el.tagName === 'PRE' || el.tagName === 'CODE') {
+                        el.style.backgroundColor = '#f8fafc';
+                        el.style.color = '#0f172a';
+                        el.style.border = '1px solid #e2e8f0';
+                        el.style.padding = '12px';
+                        el.style.borderRadius = '6px';
+                        el.style.fontSize = '0.85rem';
+                        el.style.whiteSpace = 'pre-wrap';
+                        el.style.wordBreak = 'break-all';
+                        el.style.pageBreakInside = 'avoid';
+                    } else if (el.tagName === 'LI') {
+                        el.style.color = '#374151';
+                        el.style.marginBottom = '8px';
+                        el.style.lineHeight = '1.6';
+                    } else {
+                        el.style.color = '#374151';
+                    }
+                });
+
+                // 3. Configurar opciones de html2pdf
+                const opt = {
+                    margin:       [10, 10, 10, 10],
+                    filename:     `${docName}.pdf`,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2, useCORS: true, logging: false },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+                };
+
+                // 4. Generar nuevo PDF Blob
+                const pdfBlob = await window.html2pdf().set(opt).from(hiddenDiv).output('blob');
+                document.body.removeChild(wrapper);
+
+                // 5. Eliminar el PDF anterior de Storage si existe (evita acumulación de archivos huérfanos)
+                const urlAnterior = contenido.pdfUrl || '';
+                if (urlAnterior) {
+                    try {
+                        // Extraer el path relativo desde la URL pública de Supabase
+                        const storagePrefix = '/storage/v1/object/public/documentos_pdf/';
+                        const idxPrefix = urlAnterior.indexOf(storagePrefix);
+                        if (idxPrefix !== -1) {
+                            const pathAnterior = decodeURIComponent(urlAnterior.substring(idxPrefix + storagePrefix.length).split('?')[0].split('#')[0]);
+                            await supabaseClient.storage.from('documentos_pdf').remove([pathAnterior]);
+                        }
+                    } catch (delErr) {
+                        console.warn('No se pudo eliminar el PDF anterior:', delErr);
+                    }
+                }
+
+                // 6. Subir el nuevo PDF a Storage con un path fijo por documento (sobreescribe el anterior)
+                const nuevoFilePath = `user_${doc.usuario_id || userId}/${docId}_documentacion.pdf`;
+                const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                    .from('documentos_pdf')
+                    .upload(nuevoFilePath, pdfBlob, {
+                        contentType: 'application/pdf',
+                        upsert: true
+                    });
+
+                if (uploadError) throw uploadError;
+
+                // 7. Obtener URL pública
+                const { data: publicUrlData } = supabaseClient.storage
+                    .from('documentos_pdf')
+                    .getPublicUrl(nuevoFilePath);
+
+                const nuevaPdfUrl = publicUrlData.publicUrl;
+
+                // 7. Actualizar el contenido en la base de datos
+                const nuevoContenido = {
+                    ...contenido,
+                    documentation: nuevoHtml, // Guardamos la documentación ya formateada como HTML limpio de Quill
+                    pdfUrl: nuevaPdfUrl
+                };
+
+                const { error: updateError } = await supabaseClient
+                    .from('documentos')
+                    .update({
+                        contenido: nuevoContenido,
+                        fecha_mod: new Date().toISOString()
+                    })
+                    .eq('id', docId);
+
+                if (updateError) throw updateError;
+
+                // 8. Actualizar las variables locales para la recarga
+                contenido = nuevoContenido;
+                doc.contenido = nuevoContenido;
+
+                alert('¡Cambios guardados y PDF regenerado con éxito!');
+                renderTodo(); // Recargar la lista principal en segundo plano
+                
+                // Esperar un momento para que Supabase Storage propague el nuevo archivo
+                // antes de recargar el visor (evita pantalla en blanco)
+                setTimeout(() => {
+                    abrirModalVisualizador(doc);
+                }, 1500);
+
+            } catch (err) {
+                console.error("Error al guardar edición:", err);
+                alert("Error al guardar cambios: " + err.message);
+                btnGuardar.disabled = false;
+                btnGuardar.innerText = '💾 Guardar Cambios';
+            }
+        });
+    }
+
+    renderVistaLectura();
+    document.getElementById('docModal').style.display = 'flex';
+}
+
 function obtenerDocumentosSimulados() {
     return [
         {
@@ -153,54 +527,7 @@ async function renderDocumentosActivos() {
     document.querySelectorAll('.view-doc').forEach(btn => btn.addEventListener('click', () => {
         const idx = parseInt(btn.dataset.idx);
         const doc = activeDocsList[idx];
-        
-        // Manejar de forma robusta si es un objeto o un String JSONB
-        let contenido = doc.contenido || {};
-        if (typeof contenido === 'string') {
-            try {
-                contenido = JSON.parse(contenido);
-            } catch (e) {
-                console.error("Error al parsear contenido JSON string:", e);
-                contenido = {};
-            }
-        }
-
-        let modalHtml = '';
-        if (contenido.pdfUrl || contenido.pdfBase64) {
-            const fileLink = contenido.pdfUrl || contenido.pdfBase64;
-            const isStorage = !!contenido.pdfUrl;
-            modalHtml = `
-                <div class="pdf-modal-view" style="color: #fff; font-family: 'Outfit', sans-serif;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
-                        <h3 style="font-size: 1.4rem; color: #a78bfa; margin: 0;">📄 ${escapeHtml(doc.nombre)}</h3>
-                        <a href="${fileLink}" target="_blank" download="${doc.nombre}.pdf" class="action-btn" style="text-decoration: none; display: inline-flex; align-items: center; background: linear-gradient(135deg, #a78bfa, #5e6ad2); color: #fff; padding: 10px 18px; border-radius: 30px; font-weight: 600; font-size: 0.85rem; box-shadow: 0 4px 15px rgba(94, 106, 210, 0.4); border: none; cursor: pointer; transition: transform 0.2s;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px;">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                <polyline points="7 10 12 15 17 10"></polyline>
-                                <line x1="12" y1="15" x2="12" y2="3"></line>
-                            </svg>
-                            Descargar PDF
-                        </a>
-                    </div>
-                    <p style="color: #9ca3af; margin-bottom: 15px; font-size: 0.9rem;">
-                        ${isStorage ? 'Este documento cuenta con un PDF almacenado de forma segura en Supabase Storage.' : 'Este documento cuenta con un PDF generado.'}
-                    </p>
-                    
-                    <!-- Visor de PDF Integrado en Tiempo Real -->
-                    <div style="border-radius: 12px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.15); background: #1e1e2e; margin-bottom: 15px; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);">
-                        <iframe src="${fileLink}" style="width: 100%; height: 500px; border: none; display: block;"></iframe>
-                    </div>
-
-                    <hr style="border: 1px solid rgba(255,255,255,0.1); margin: 20px 0;">
-                    <h4 style="margin-bottom: 8px; color: #a78bfa;">Metadatos del Esquema (JSON):</h4>
-                    <pre style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 8px; overflow: auto; max-height: 150px; color: #9ca3af; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.1); font-family: monospace;">${JSON.stringify({ ...contenido, pdfBase64: contenido.pdfBase64 ? '[PDF Base64 Content]' : undefined }, null, 2)}</pre>
-                </div>
-            `;
-        } else {
-            modalHtml = `<pre style="color: #fff;">${JSON.stringify(contenido, null, 2)}</pre>`;
-        }
-        document.getElementById('modalBody').innerHTML = modalHtml;
-        document.getElementById('docModal').style.display = 'flex';
+        abrirModalVisualizador(doc);
     }));
 
     document.querySelectorAll('.edit-doc').forEach(btn => btn.addEventListener('click', async () => {
