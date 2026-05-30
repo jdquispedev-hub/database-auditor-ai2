@@ -7,6 +7,7 @@ DROP TABLE IF EXISTS public.compartidos CASCADE;
 DROP TABLE IF EXISTS public.papelera CASCADE;
 DROP TABLE IF EXISTS public.documentos CASCADE;
 DROP TABLE IF EXISTS public.perfiles CASCADE;
+DROP TABLE IF EXISTS public.logs_actividad CASCADE;
 
 -- 2. Crear tabla 'perfiles' (enlazada a los usuarios de Supabase Auth)
 CREATE TABLE public.perfiles (
@@ -14,9 +15,14 @@ CREATE TABLE public.perfiles (
   nombres text NULL,
   apellidos text NULL,
   tipo_uso text NULL,
+  rol text NULL DEFAULT 'usuario'::text,
+  estado text NULL DEFAULT 'activo'::text,
+  foto_url text NULL,
   created_at timestamp with time zone NULL DEFAULT now(),
   CONSTRAINT perfiles_pkey PRIMARY KEY (id),
-  CONSTRAINT perfiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users (id) ON DELETE CASCADE
+  CONSTRAINT perfiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users (id) ON DELETE CASCADE,
+  CONSTRAINT perfiles_rol_check CHECK (rol IN ('usuario', 'premium', 'admin')),
+  CONSTRAINT perfiles_estado_check CHECK (estado IN ('activo', 'suspendido'))
 ) TABLESPACE pg_default;
 
 -- 3. Crear tabla 'documentos' (con FK a auth.users corregida y ON DELETE CASCADE)
@@ -57,11 +63,25 @@ CREATE TABLE public.compartidos (
   CONSTRAINT compartidos_doc_user_unique UNIQUE (documento_id, usuario_compartido_id)
 ) TABLESPACE pg_default;
 
+-- 5b. Crear tabla de logs de actividad global
+CREATE TABLE public.logs_actividad (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  usuario_id uuid NULL,
+  usuario_email text NULL,
+  accion text NOT NULL,
+  detalles jsonb NULL,
+  ip_address text NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT logs_actividad_pkey PRIMARY KEY (id),
+  CONSTRAINT logs_actividad_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES auth.users (id) ON DELETE SET NULL
+) TABLESPACE pg_default;
+
 -- 6. Habilitar Seguridad a Nivel de Fila (RLS) en todas las tablas
 ALTER TABLE public.perfiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.documentos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.papelera ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.compartidos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.logs_actividad ENABLE ROW LEVEL SECURITY;
 
 -- 7. Políticas RLS para 'perfiles' (permitir lectura a usuarios autenticados para poder compartir)
 CREATE POLICY "Los usuarios autenticados pueden ver todos los perfiles" 
@@ -137,16 +157,35 @@ USING (
   auth.role() = 'authenticated'
 );
 
+-- 10b. Políticas RLS para la tabla 'logs_actividad'
+CREATE POLICY "Permitir crear logs a usuarios autenticados"
+ON public.logs_actividad FOR INSERT
+WITH CHECK (
+  auth.role() = 'authenticated'
+);
+
+CREATE POLICY "Permitir ver logs únicamente a administradores"
+ON public.logs_actividad FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM public.perfiles
+    WHERE perfiles.id = auth.uid() AND perfiles.rol = 'admin'
+  )
+);
+
 -- 11. Trigger y automatización para crear perfiles desde auth.users automáticamente
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-  INSERT INTO public.perfiles (id, nombres, apellidos, tipo_uso)
+  INSERT INTO public.perfiles (id, nombres, apellidos, tipo_uso, rol, estado, foto_url)
   VALUES (
     new.id,
     COALESCE(new.raw_user_meta_data->>'nombres', split_part(new.email, '@', 1)),
     COALESCE(new.raw_user_meta_data->>'apellidos', ''),
-    COALESCE(new.raw_user_meta_data->>'tipo_uso', 'Personal')
+    COALESCE(new.raw_user_meta_data->>'tipo_uso', 'Personal'),
+    COALESCE(new.raw_user_meta_data->>'rol', 'usuario'),
+    'activo',
+    COALESCE(new.raw_user_meta_data->>'foto_url', NULL)
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
@@ -159,11 +198,13 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- 12. Sincronizar usuarios existentes de Auth a Perfiles
-INSERT INTO public.perfiles (id, nombres, apellidos, tipo_uso)
+INSERT INTO public.perfiles (id, nombres, apellidos, tipo_uso, rol, estado)
 SELECT 
   id, 
   COALESCE(raw_user_meta_data->>'nombres', split_part(email, '@', 1)) as nombres,
   COALESCE(raw_user_meta_data->>'apellidos', '') as apellidos,
-  COALESCE(raw_user_meta_data->>'tipo_uso', 'Desarrollo') as tipo_uso
+  COALESCE(raw_user_meta_data->>'tipo_uso', 'Desarrollo') as tipo_uso,
+  COALESCE(raw_user_meta_data->>'rol', 'usuario') as rol,
+  'activo' as estado
 FROM auth.users
 ON CONFLICT (id) DO NOTHING;

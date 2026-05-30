@@ -46,7 +46,34 @@ document.addEventListener('DOMContentLoaded', () => {
             if (error) throw error;
             sessionStorage.setItem('ds_logged', 'true');
             sessionStorage.setItem('ds_user', data.user.id);
-            //sessionStorage.setItem('ds_email', data.user.email);
+            sessionStorage.setItem('ds_email', data.user.email);
+            
+            // Obtener el rol del usuario desde la tabla de perfiles
+            const { data: perfil, error: perfilError } = await supabase
+                .from('perfiles')
+                .select('rol')
+                .eq('id', data.user.id)
+                .single();
+                
+            const rol = perfil && !perfilError ? perfil.rol : 'usuario';
+            sessionStorage.setItem('ds_role', rol);
+
+            // Registrar log de inicio de sesión
+            try {
+                await fetch('/api/logs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        usuarioId: data.user.id,
+                        usuarioEmail: data.user.email,
+                        accion: 'login',
+                        detalles: { agent: navigator.userAgent }
+                    })
+                });
+            } catch (logErr) {
+                console.error('Error registrando log de login:', logErr);
+            }
+
             window.location.href = 'usu_panel.html';
 
         } catch (err) {

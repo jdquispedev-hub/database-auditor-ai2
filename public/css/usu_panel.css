@@ -244,8 +244,10 @@
     background: #111827;
     border: 1px solid #2d3a5e;
     border-radius: 24px;
-    width: 90%;
-    max-width: 800px;
+    width: 98%;
+    max-width: none;
+    height: 95vh;
+    max-height: 95vh;
     padding: 30px;
     position: relative;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
@@ -386,5 +388,79 @@
 .revoke-share-btn:hover {
     background: #ef4444;
     color: white;
+}
+
+/* ========== EDITOR A4 PREVIEW ========== */
+.a4-sheet {
+    background: #ffffff;
+    color: #1f2937;
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto 40px;
+    padding: 15mm 20mm;
+    box-shadow: 0 0 0 1px #d1d5db, 0 12px 40px rgba(0,0,0,0.45);
+    font-family: 'Outfit', sans-serif;
+    font-size: 11pt;
+    line-height: 1.7;
+    box-sizing: border-box;
+    position: relative;
+    border-radius: 2px;
+}
+.a4-sheet:last-child {
+    margin-bottom: 16px;
+}
+.page-break-line {
+    display: block;
+    height: 0;
+    border-top: 2px dashed #a78bfa;
+    margin: 0 -20mm;
+    page-break-after: always;
+    position: relative;
+}
+.page-break-line::after {
+    content: 'Salto de página';
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f111a;
+    color: #a78bfa;
+    font-size: 0.65rem;
+    padding: 0 8px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+/* Ajustes modal edición */
+.modal-content {
+    max-height: 95vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+#modalBody {
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+.edit-modal-view {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Scrollbar personalizado para la preview */
+#a4PreviewScroll::-webkit-scrollbar {
+    width: 8px;
+}
+#a4PreviewScroll::-webkit-scrollbar-track {
+    background: #0f111a;
+}
+#a4PreviewScroll::-webkit-scrollbar-thumb {
+    background: #2d3a5e;
+    border-radius: 4px;
+}
+#a4PreviewScroll::-webkit-scrollbar-thumb:hover {
+    background: #5e6ad2;
 }
 

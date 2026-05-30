@@ -23,6 +23,349 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Función para registrar logs de actividad en Supabase
+async function registrarLog(usuarioId, usuarioEmail, accion, detalles, req) {
+    try {
+        const ip = req ? (req.headers['x-forwarded-for'] || req.socket.remoteAddress) : null;
+        
+        // Limpiar IP de notación IPv6 si es necesario
+        const cleanIp = ip && ip.includes('::ffff:') ? ip.split('::ffff:')[1] : ip;
+
+        const { error } = await supabase
+            .from('logs_actividad')
+            .insert([{
+                usuario_id: usuarioId ? usuarioId : null,
+                usuario_email: usuarioEmail ? usuarioEmail : null,
+                accion: accion,
+                detalles: detalles || {},
+                ip_address: cleanIp
+            }]);
+            
+        if (error) {
+            console.error('Error registrando log de actividad:', error);
+        }
+    } catch (err) {
+        console.error('Error catastrófico en registrarLog:', err);
+    }
+}
+
+// Función auxiliar para validar estado y privilegios Premium del usuario
+async function verificarUsuario(userId, res, requierePremium = false) {
+    if (!userId) return true; // Permitir invitados por defecto
+    
+    try {
+        const { data: perfil, error } = await supabase
+            .from('perfiles')
+            .select('rol, estado')
+            .eq('id', userId)
+            .single();
+            
+        if (error || !perfil) {
+            return true; // Si no hay perfil, dejar pasar
+        }
+        
+        if (perfil.estado === 'suspendido') {
+            res.status(403).json({ error: 'Tu cuenta ha sido suspendida. Contacta al administrador para más información.' });
+            return false;
+        }
+        
+        if (requierePremium && perfil.rol === 'usuario') {
+            res.status(403).json({ error: 'Esta característica está reservada exclusivamente para miembros Premium. ¡Adquiere tu suscripción para desbloquearla!' });
+            return false;
+        }
+        
+        return true;
+    } catch (err) {
+        console.error('Error en verificarUsuario:', err);
+        return true;
+    }
+}
+
+// Endpoint para recibir logs desde el cliente (como inicios de sesión)
+app.post('/api/logs', async (req, res) => {
+    try {
+        const { usuarioId, usuarioEmail, accion, detalles } = req.body;
+        await registrarLog(usuarioId, usuarioEmail, accion, detalles, req);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error en POST /api/logs:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Endpoint para obtener logs globales (Solo admin)
+app.get('/api/admin/logs', async (req, res) => {
+    try {
+        const adminId = req.headers['x-admin-id'];
+        if (!adminId) {
+            return res.status(401).json({ error: 'No autorizado. Se requiere x-admin-id' });
+        }
+
+        // Verificar que el rol sea admin
+        const { data: perfil, error: perfilError } = await supabase
+            .from('perfiles')
+            .select('rol')
+            .eq('id', adminId)
+            .single();
+
+        if (perfilError || !perfil || perfil.rol !== 'admin') {
+            return res.status(403).json({ error: 'Acceso denegado. Se requieren privilegios de administrador.' });
+        }
+
+        // Obtener logs
+        const { data: logs, error: logsError } = await supabase
+            .from('logs_actividad')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (logsError) {
+            throw logsError;
+        }
+
+        res.json({ success: true, logs });
+    } catch (error) {
+        console.error('Error en GET /api/admin/logs:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Endpoint para obtener métricas globales de administración (Solo admin)
+app.get('/api/admin/metrics', async (req, res) => {
+    try {
+        const adminId = req.headers['x-admin-id'];
+        if (!adminId) {
+            return res.status(401).json({ error: 'No autorizado. Se requiere x-admin-id' });
+        }
+
+        // Verificar que el rol sea admin
+        const { data: perfil, error: perfilError } = await supabase
+            .from('perfiles')
+            .select('rol')
+            .eq('id', adminId)
+            .single();
+
+        if (perfilError || !perfil || perfil.rol !== 'admin') {
+            return res.status(403).json({ error: 'Acceso denegado. Se requieren privilegios de administrador.' });
+        }
+
+        // Consultar métricas
+        // 1. Total usuarios
+        const { count: totalUsuarios, error: errUsers } = await supabase
+            .from('perfiles')
+            .select('*', { count: 'exact', head: true });
+
+        // 2. Total documentos
+        const { count: totalDocumentos, error: errDocs } = await supabase
+            .from('documentos')
+            .select('*', { count: 'exact', head: true });
+
+        // 3. Total compartidos
+        const { count: totalCompartidos, error: errShares } = await supabase
+            .from('compartidos')
+            .select('*', { count: 'exact', head: true });
+
+        // 4. Logs totales
+        const { count: totalLogs, error: errLogs } = await supabase
+            .from('logs_actividad')
+            .select('*', { count: 'exact', head: true });
+
+        if (errUsers || errDocs || errShares || errLogs) {
+            throw new Error('Error al consultar estadísticas globales');
+        }
+
+        res.json({
+            success: true,
+            metrics: {
+                totalUsuarios: totalUsuarios || 0,
+                totalDocumentos: totalDocumentos || 0,
+                totalCompartidos: totalCompartidos || 0,
+                totalLogs: totalLogs || 0
+            }
+        });
+    } catch (error) {
+        console.error('Error en GET /api/admin/metrics:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ===================== CRUD DE USUARIOS (SOLO ADMIN) =====================
+
+// Obtener lista completa de usuarios con cantidad de documentos guardados
+app.get('/api/admin/users', async (req, res) => {
+    try {
+        const adminId = req.headers['x-admin-id'];
+        if (!adminId) return res.status(401).json({ error: 'No autorizado' });
+
+        const { data: adminP, error: adminErr } = await supabase
+            .from('perfiles')
+            .select('rol')
+            .eq('id', adminId)
+            .single();
+
+        if (adminErr || !adminP || adminP.rol !== 'admin') {
+            return res.status(403).json({ error: 'Acceso denegado' });
+        }
+
+        // Obtener todos los perfiles
+        const { data: perfiles, error: perfErr } = await supabase
+            .from('perfiles')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (perfErr) throw perfErr;
+
+        // Obtener documentos para mapear el conteo
+        const { data: docs, error: docsErr } = await supabase
+            .from('documentos')
+            .select('usuario_id');
+
+        if (docsErr) throw docsErr;
+
+        const docsCount = {};
+        docs.forEach(d => {
+            docsCount[d.usuario_id] = (docsCount[d.usuario_id] || 0) + 1;
+        });
+
+        const users = perfiles.map(p => ({
+            ...p,
+            documentosCount: docsCount[p.id] || 0
+        }));
+
+        res.json({ success: true, users });
+    } catch (err) {
+        console.error('Error en GET /api/admin/users:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Crear usuario instantáneamente sin confirmación de email
+app.post('/api/admin/users', async (req, res) => {
+    try {
+        const adminId = req.headers['x-admin-id'];
+        if (!adminId) return res.status(401).json({ error: 'No autorizado' });
+
+        const { data: adminP, error: adminErr } = await supabase
+            .from('perfiles')
+            .select('rol')
+            .eq('id', adminId)
+            .single();
+
+        if (adminErr || !adminP || adminP.rol !== 'admin') {
+            return res.status(403).json({ error: 'Acceso denegado' });
+        }
+
+        const { nombres, apellidos, email, password, rol, tipo_uso, foto_url } = req.body;
+
+        // Crear en Auth usando la API del Administrador (bypassea RLS y confirmaciones)
+        const { data: authUser, error: authErr } = await supabase.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: { nombres, apellidos, tipo_uso, rol, foto_url }
+        });
+
+        if (authErr) throw authErr;
+
+        // Forzar inserción relacional en perfiles
+        const { error: perfErr } = await supabase
+            .from('perfiles')
+            .upsert([{
+                id: authUser.user.id,
+                nombres,
+                apellidos,
+                tipo_uso: tipo_uso || 'Personal',
+                rol: rol || 'usuario',
+                estado: 'activo',
+                foto_url: foto_url || null
+            }]);
+
+        if (perfErr) throw perfErr;
+
+        res.json({ success: true, user: authUser.user });
+    } catch (err) {
+        console.error('Error en POST /api/admin/users:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Actualizar usuario
+app.put('/api/admin/users/:id', async (req, res) => {
+    try {
+        const adminId = req.headers['x-admin-id'];
+        if (!adminId) return res.status(401).json({ error: 'No autorizado' });
+
+        const { data: adminP, error: adminErr } = await supabase
+            .from('perfiles')
+            .select('rol')
+            .eq('id', adminId)
+            .single();
+
+        if (adminErr || !adminP || adminP.rol !== 'admin') {
+            return res.status(403).json({ error: 'Acceso denegado' });
+        }
+
+        const userId = req.params.id;
+        const { nombres, apellidos, email, password, rol, tipo_uso, estado, foto_url } = req.body;
+
+        // Actualizar perfiles
+        const { error: perfErr } = await supabase
+            .from('perfiles')
+            .update({ nombres, apellidos, rol, tipo_uso, estado, foto_url })
+            .eq('id', userId);
+
+        if (perfErr) throw perfErr;
+
+        // Sincronizar en Auth
+        const updateData = {
+            user_metadata: { nombres, apellidos, tipo_uso, rol, foto_url }
+        };
+        if (email) updateData.email = email;
+        if (password) updateData.password = password;
+
+        const { error: authErr } = await supabase.auth.admin.updateUserById(userId, updateData);
+        if (authErr) {
+            console.warn('Advertencia al actualizar Auth:', authErr.message);
+        }
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Error en PUT /api/admin/users/:id:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Eliminar usuario
+app.delete('/api/admin/users/:id', async (req, res) => {
+    try {
+        const adminId = req.headers['x-admin-id'];
+        if (!adminId) return res.status(401).json({ error: 'No autorizado' });
+
+        const { data: adminP, error: adminErr } = await supabase
+            .from('perfiles')
+            .select('rol')
+            .eq('id', adminId)
+            .single();
+
+        if (adminErr || !adminP || adminP.rol !== 'admin') {
+            return res.status(403).json({ error: 'Acceso denegado' });
+        }
+
+        const userId = req.params.id;
+
+        // Eliminar de Auth
+        const { error: authErr } = await supabase.auth.admin.deleteUser(userId);
+        if (authErr) throw authErr;
+
+        // Asegurar borrado en perfiles
+        await supabase.from('perfiles').delete().eq('id', userId);
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Error en DELETE /api/admin/users/:id:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Servir jsPDF desde node_modules
 app.get('/jspdf.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'node_modules/jspdf/dist/jspdf.umd.min.js'));
@@ -596,6 +939,10 @@ app.get('/test-openai', async (req, res) => {
 // Endpoint para análisis con Python
 app.post('/analyze-python', upload.single('file'), async (req, res) => {
     try {
+        const userId = req.headers['x-user-id'];
+        const userEmail = req.headers['x-user-email'];
+        if (!(await verificarUsuario(userId, res, false))) return;
+
         if (!req.file) {
             return res.status(400).json({ error: 'No se ha subido ningún archivo' });
         }
@@ -685,6 +1032,13 @@ app.post('/analyze-python', upload.single('file'), async (req, res) => {
                         analysisType: 'python',
                         fileName: req.file.originalname
                     };
+                    
+                    // Registrar log de éxito
+                    registrarLog(userId, userEmail, 'upload_python', {
+                        fileName: req.file.originalname,
+                        fileSize: req.file.size,
+                        fileType: fileExtension
+                    }, req);
                     
                     res.json(formattedResult);
                 } else {
@@ -855,6 +1209,10 @@ function generatePythonDocumentation(analysis) {
 // Endpoint para subir y analizar archivos
 app.post('/upload', upload.single('file'), async (req, res) => {
     try {
+        const userId = req.headers['x-user-id'];
+        const userEmail = req.headers['x-user-email'];
+        if (!(await verificarUsuario(userId, res, true))) return; // REQUIERE PREMIUM!
+
         if (!req.file) {
             return res.status(400).json({ error: 'No se ha subido ningún archivo' });
         }
@@ -908,6 +1266,13 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         // Eliminar archivo temporal
         fs.unlinkSync(filePath);
 
+        // Registrar log de éxito
+        registrarLog(userId, userEmail, 'upload_ai', {
+            fileName: req.file.originalname,
+            fileSize: req.file.size,
+            fileType: fileExtension
+        }, req);
+
         res.json({
             success: true,
             schema: schema,
@@ -933,6 +1298,10 @@ app.post('/upload', upload.single('file'), async (req, res) => {
 // Endpoint para generar datos de prueba
 app.post('/generate-data', async (req, res) => {
     try {
+        const userId = req.headers['x-user-id'];
+        const userEmail = req.headers['x-user-email'];
+        if (!(await verificarUsuario(userId, res, false))) return;
+
         const { schema, config } = req.body;
         
         if (!schema || !schema.tables) {
@@ -982,6 +1351,11 @@ app.post('/generate-data', async (req, res) => {
             try {
                 const result = JSON.parse(output);
                 if (result.success) {
+                    // Registrar log de éxito
+                    registrarLog(userId, userEmail, 'generate_data', {
+                        tables: schema.tables.map(t => t.name)
+                    }, req);
+
                     res.json(result.data);
                 } else {
                     res.status(400).json({ error: result.error || 'Error en generación de datos' });
@@ -1008,6 +1382,10 @@ app.post('/generate-data', async (req, res) => {
 // Endpoint para conversión de esquemas
 app.post('/convert', async (req, res) => {
     try {
+        const userId = req.headers['x-user-id'];
+        const userEmail = req.headers['x-user-email'];
+        if (!(await verificarUsuario(userId, res, true))) return; // REQUIERE PREMIUM!
+
         const { schema, targetFormat } = req.body;
         
         if (!schema || !targetFormat) {
@@ -1041,6 +1419,11 @@ Responde ÚNICAMENTE con el bloque de código del nuevo esquema. No incluyas exp
             messages: [{ role: "user", content: prompt }],
             temperature: 0.3, // Menor temperatura para mayor precisión técnica
         });
+
+        // Registrar log de éxito
+        registrarLog(userId, userEmail, 'convert', {
+            targetFormat: targetFormat
+        }, req);
 
         res.json({
             success: true,

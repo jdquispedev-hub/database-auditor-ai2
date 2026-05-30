@@ -48,59 +48,6 @@ async function abrirModalVisualizador(doc) {
     const documentationTextRaw = contenido.documentation || '';
     const documentationText = limpiarMarkdownFences(documentationTextRaw);
 
-    // Inyectar estilos para el toolbar de Quill en Modo Oscuro si no existen
-    if (!document.getElementById('quill-dark-theme-styles')) {
-        const style = document.createElement('style');
-        style.id = 'quill-dark-theme-styles';
-        style.innerHTML = `
-            .ql-toolbar.ql-snow {
-                background: #1e1e2e !important;
-                border: 1px solid rgba(255, 255, 255, 0.15) !important;
-                border-top-left-radius: 12px;
-                border-top-right-radius: 12px;
-                padding: 10px !important;
-            }
-            .ql-toolbar.ql-snow .ql-stroke {
-                stroke: #e5e7eb !important;
-            }
-            .ql-toolbar.ql-snow .ql-fill {
-                fill: #e5e7eb !important;
-            }
-            .ql-toolbar.ql-snow .ql-picker {
-                color: #e5e7eb !important;
-            }
-            .ql-toolbar.ql-snow .ql-picker-options {
-                background-color: #1e1e2e !important;
-                border: 1px solid rgba(255, 255, 255, 0.15) !important;
-            }
-            .ql-container.ql-snow {
-                background: #1e1e2e !important;
-                border: 1px solid rgba(255, 255, 255, 0.15) !important;
-                border-top: none !important;
-                border-bottom-left-radius: 12px;
-                border-bottom-right-radius: 12px;
-                color: #f3f4f6 !important;
-                font-family: 'Outfit', sans-serif !important;
-                font-size: 0.95rem;
-                height: 480px;
-            }
-            .ql-editor {
-                min-height: 400px;
-                line-height: 1.7;
-            }
-            .ql-editor h1, .ql-editor h2, .ql-editor h3, .ql-editor h4 {
-                color: #a78bfa !important;
-                font-weight: 700;
-                margin-top: 20px;
-                margin-bottom: 10px;
-            }
-            .ql-editor p {
-                margin-bottom: 12px;
-            }
-        `;
-        document.head.appendChild(style);
-    }
-
     const modalBody = document.getElementById('modalBody');
 
     // Función para renderizar la vista de sólo lectura (PDF limpio a pantalla completa sin barra lateral)
@@ -137,192 +84,275 @@ async function abrirModalVisualizador(doc) {
         document.getElementById('btnEditarContenido')?.addEventListener('click', renderVistaEdicion);
     }
 
-    // Función para renderizar el editor WYSIWYG con Quill.js (igual que Word)
+    // Función para renderizar el editor WYSIWYG con TinyMCE + Preview PDF en vivo
     function renderVistaEdicion() {
         modalBody.innerHTML = `
             <div class="edit-modal-view" style="color: #fff; font-family: 'Outfit', sans-serif;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
-                    <h3 style="font-size: 1.4rem; color: #a78bfa; margin: 0;">✏️ Editar Documentación: ${escapeHtml(docName)}</h3>
-                    <div style="display: flex; gap: 10px;">
-                        <button id="btnGuardarEdicion" class="action-btn" style="display: inline-flex; align-items: center; background: #10b981; color: #fff; padding: 10px 18px; border-radius: 30px; font-weight: 600; font-size: 0.85rem; border: none; cursor: pointer; transition: transform 0.2s;">
-                            💾 Guardar Cambios
+                <div style="flex-shrink:0; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:10px;">
+                    <h3 style="font-size:1.3rem; color:#a78bfa; margin:0;">✏️ Editar: ${escapeHtml(docName)}</h3>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button id="btnGuardarEdicion" class="action-btn" style="display:inline-flex; align-items:center; background:#10b981; color:#fff; padding:10px 18px; border-radius:30px; font-weight:600; font-size:0.85rem; border:none; cursor:pointer; transition:transform 0.2s;">
+                            💾 Guardar
                         </button>
-                        <button id="btnCancelarEdicion" class="action-btn" style="display: inline-flex; align-items: center; background: #6b7280; color: #fff; padding: 10px 18px; border-radius: 30px; font-weight: 600; font-size: 0.85rem; border: none; cursor: pointer; transition: transform 0.2s;">
+                        <button id="btnGuardarYVer" class="action-btn" style="display:inline-flex; align-items:center; background:linear-gradient(135deg,#a78bfa,#5e6ad2); color:#fff; padding:10px 18px; border-radius:30px; font-weight:600; font-size:0.85rem; border:none; cursor:pointer; transition:transform 0.2s; box-shadow:0 4px 15px rgba(94,106,210,0.4);">
+                            💾 Guardar y Ver
+                        </button>
+                        <button id="btnCancelarEdicion" class="action-btn" style="display:inline-flex; align-items:center; background:#6b7280; color:#fff; padding:10px 18px; border-radius:30px; font-weight:600; font-size:0.85rem; border:none; cursor:pointer; transition:transform 0.2s;">
                             ❌ Cancelar
                         </button>
                     </div>
                 </div>
-                <p style="color: #9ca3af; margin-bottom: 15px; font-size: 0.9rem;">
-                    Edita el contenido del reporte a continuación. Puedes presionar el botón de <b>Tijeras (✂️)</b> en la barra de herramientas para insertar un <b>Salto de Página Manual</b> donde desees forzar una nueva página en el PDF.
+                <p style="color:#9ca3af; margin-bottom:10px; font-size:0.85rem; flex-shrink:0;">
+                    Usa el botón <b>Salto de página</b> en la barra de herramientas para cortar las hojas. La vista previa se actualiza automáticamente.
                 </p>
-                <div id="editorQuill" style="height: 400px; margin-bottom: 20px;"></div>
+                <div style="display:flex; gap:14px; overflow:hidden; height:720px;">
+                    <div style="flex:1 1 50%; min-width:320px; height:100%;">
+                        <textarea id="editorTiny"></textarea>
+                    </div>
+                    <div style="flex:1 1 50%; min-width:320px; display:flex; flex-direction:column; background:#161621; border-radius:12px; border:1px solid rgba(255,255,255,0.1); overflow:hidden; height:100%;">
+                        <div style="flex-shrink:0; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between; align-items:center;">
+                            <span style="color:#a78bfa; font-weight:600; font-size:0.9rem;">📄 Vista Previa PDF</span>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span id="previewStatus" style="color:#6b7280; font-size:0.75rem;">Listo</span>
+                                <button id="btnActualizarPreview" class="action-btn" style="background:rgba(94,106,210,0.2); border:1px solid rgba(94,106,210,0.4); color:#a78bfa; padding:4px 10px; border-radius:6px; font-size:0.75rem; cursor:pointer;">🔄 Actualizar</button>
+                            </div>
+                        </div>
+                        <iframe id="pdfPreviewIframe" style="flex:1; width:100%; border:none; background:#1e1e2e;"></iframe>
+                    </div>
+                </div>
             </div>
         `;
 
-        // Configurar opciones de barra de herramientas con botón personalizado 'pagebreak'
-        const toolbarOptions = [
-            [{ header: [1, 2, 3, false] }],
-            ['bold', 'italic', 'underline', 'strike'],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            [{ color: [] }, { background: [] }],
-            ['pagebreak'], // Botón personalizado para saltos de página
-            ['clean']
-        ];
-
-        // Definir icono SVG de tijeras y corte para el salto de página
-        const pagebreakIcon = `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2.5" fill="none" style="vertical-align: middle;"><line x1="3" y1="12" x2="21" y2="12" stroke-dasharray="4 4"></line><path d="M7 8l5-5 5 5M17 16l-5 5-5-5"></path></svg>`;
-
-        // Inicializar el editor Quill
-        const quill = new window.Quill('#editorQuill', {
-            modules: {
-                toolbar: {
-                    container: toolbarOptions,
-                    handlers: {
-                        pagebreak: function() {
-                            const range = this.quill.getSelection();
-                            if (range) {
-                                // Insertar el contenedor de salto de página que será interpretado por html2pdf.js
-                                const pageBreakHtml = `<div class="html2pdf__page-break" style="page-break-after: always; border-bottom: 2px dashed #a78bfa; margin: 20px 0; padding: 6px 0; text-align: center; color: #a78bfa; font-size: 0.85rem; font-family: 'Outfit', sans-serif; font-weight: 600; user-select: none;">✂️ [Salto de Página Manual] ✂️</div>`;
-                                this.quill.clipboard.dangerouslyPasteHTML(range.index, pageBreakHtml);
-                            }
-                        }
-                    }
-                }
-            },
-            theme: 'snow'
-        });
-
-        // Configurar el icono DESPUÉS de que Quill termine de renderizar el toolbar
-        setTimeout(() => {
-            const pagebreakBtn = document.querySelector('.ql-pagebreak');
-            if (pagebreakBtn) {
-                pagebreakBtn.innerHTML = pagebreakIcon;
-                pagebreakBtn.title = "Insertar Salto de Página Manual en el PDF";
-                pagebreakBtn.style.display = 'flex';
-                pagebreakBtn.style.alignItems = 'center';
-                pagebreakBtn.style.justifyContent = 'center';
-                pagebreakBtn.style.width = '28px';
-                pagebreakBtn.style.height = '28px';
-            }
-        }, 50);
-
-        // Cargar el contenido de forma robusta. Si es HTML lo carga directo; si es Markdown lo compila primero a HTML
+        // Preparar HTML inicial
         let docHtml = '';
         if (documentationText.trim().startsWith('<') || documentationText.trim().includes('</p>') || documentationText.trim().includes('</h1>')) {
             docHtml = documentationText;
         } else {
             docHtml = window.marked.parse(documentationText);
         }
-        quill.clipboard.dangerouslyPasteHTML(docHtml);
 
-        document.getElementById('btnCancelarEdicion')?.addEventListener('click', renderVistaLectura);
-        document.getElementById('btnGuardarEdicion')?.addEventListener('click', async () => {
-            const nuevoHtml = quill.root.innerHTML;
-            
-            const btnGuardar = document.getElementById('btnGuardarEdicion');
-            btnGuardar.disabled = true;
-            btnGuardar.innerText = '⚡ Regenerando PDF...';
+        // Función auxiliar: limpiar HTML para PDF
+        function prepararHtmlParaPdf(rawHtml) {
+            return rawHtml
+                .replace(/<!-- pagebreak -->/gi, '<div class="html2pdf__page-break"></div>')
+                .replace(/<hr[^>]*class=["']?mce-pagebreak["']?[^>]*>/gi, '<div class="html2pdf__page-break"></div>')
+                .replace(/<div[^>]*class=["']?mce-pagebreak["']?[^>]*>.*?<\/div>/gi, '<div class="html2pdf__page-break"></div>');
+        }
+
+        // Función auxiliar: generar Blob PDF desde HTML limpio
+        async function generarPdfBlob(pdfHtml, esPreview = false) {
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;';
+            const hiddenDiv = document.createElement('div');
+            hiddenDiv.style.cssText = 'width:210mm;background:#ffffff;padding:15mm 20mm;box-sizing:border-box;color:#1f2937;';
+            hiddenDiv.innerHTML = pdfHtml;
+            wrapper.appendChild(hiddenDiv);
+            document.body.appendChild(wrapper);
+
+            hiddenDiv.querySelectorAll('*').forEach(el => {
+                el.style.backgroundColor = 'transparent';
+                if (el.classList.contains('html2pdf__page-break')) {
+                    el.style.cssText = 'page-break-after: always; height: 0px; margin: 0px; padding: 0px; border: none; overflow: hidden;';
+                    return;
+                }
+                if (el.tagName === 'H1' || el.tagName === 'H2' || el.tagName === 'H3' || el.tagName === 'H4') {
+                    el.style.color = '#1e3a8a';
+                    el.style.borderBottom = '2px solid #e5e7eb';
+                    el.style.paddingBottom = '6px';
+                    el.style.marginTop = '28px';
+                    el.style.marginBottom = '16px';
+                    el.style.fontWeight = '700';
+                    el.style.pageBreakAfter = 'avoid';
+                } else if (el.tagName === 'P') {
+                    el.style.color = '#374151';
+                    el.style.lineHeight = '1.7';
+                    el.style.marginBottom = '16px';
+                } else if (el.tagName === 'TABLE') {
+                    el.style.width = '100%';
+                    el.style.borderCollapse = 'collapse';
+                    el.style.marginBottom = '20px';
+                    el.style.pageBreakInside = 'avoid';
+                } else if (el.tagName === 'TR') {
+                    el.style.pageBreakInside = 'avoid';
+                } else if (el.tagName === 'TH') {
+                    el.style.color = '#111827';
+                    el.style.backgroundColor = '#e5e7eb';
+                    el.style.border = '2px solid #374151';
+                    el.style.fontWeight = '700';
+                    el.style.padding = '10px';
+                    el.style.fontSize = '0.9rem';
+                } else if (el.tagName === 'TD') {
+                    el.style.color = '#111827';
+                    el.style.border = '1.5px solid #6b7280';
+                    el.style.padding = '10px';
+                    el.style.fontSize = '0.85rem';
+                } else if (el.tagName === 'A') {
+                    el.style.color = '#2563eb';
+                } else if (el.tagName === 'PRE' || el.tagName === 'CODE') {
+                    el.style.backgroundColor = '#f8fafc';
+                    el.style.color = '#0f172a';
+                    el.style.border = '1px solid #e2e8f0';
+                    el.style.padding = '12px';
+                    el.style.borderRadius = '6px';
+                    el.style.fontSize = '0.85rem';
+                    el.style.whiteSpace = 'pre-wrap';
+                    el.style.wordBreak = 'break-all';
+                    el.style.pageBreakInside = 'avoid';
+                } else if (el.tagName === 'LI') {
+                    el.style.color = '#374151';
+                    el.style.marginBottom = '8px';
+                    el.style.lineHeight = '1.6';
+                } else {
+                    el.style.color = '#374151';
+                }
+            });
+
+            const opt = {
+                margin: [10, 10, 10, 10],
+                filename: `${docName}.pdf`,
+                image: { type: 'jpeg', quality: esPreview ? 0.85 : 0.98 },
+                html2canvas: { scale: esPreview ? 1 : 2, useCORS: true, logging: false },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak: { mode: ['css', 'legacy'] }
+            };
+
+            const pdfBlob = await window.html2pdf().set(opt).from(hiddenDiv).output('blob');
+            document.body.removeChild(wrapper);
+            return pdfBlob;
+        }
+
+        let previewDebounceTimer = null;
+        let currentPreviewUrl = null;
+        let isGeneratingPreview = false;
+
+        async function actualizarPreview() {
+            if (isGeneratingPreview) return;
+            const editor = window.tinymce.get('editorTiny');
+            if (!editor) return;
+            const statusEl = document.getElementById('previewStatus');
+            isGeneratingPreview = true;
+            if (statusEl) statusEl.innerText = 'Generando...';
 
             try {
-                // 1. Crear contenedor temporal fuera de pantalla para evitar parpadeos y que sea visible a html2canvas
-                const wrapper = document.createElement('div');
-                wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;';
-                
-                const hiddenDiv = document.createElement('div');
-                hiddenDiv.id = 'tempDocumentationContent';
-                hiddenDiv.style.cssText = 'width:210mm;background:#ffffff;padding:15mm 20mm;box-sizing:border-box;color:#1f2937;';
-                hiddenDiv.innerHTML = nuevoHtml;
-                
-                wrapper.appendChild(hiddenDiv);
-                document.body.appendChild(wrapper);
+                const rawHtml = editor.getContent();
+                const pdfHtml = prepararHtmlParaPdf(rawHtml);
+                const blob = await generarPdfBlob(pdfHtml, true);
 
-                // 2. Dar formato impecable al elemento clonado tal como lo hace usu_generar.js
-                hiddenDiv.querySelectorAll('*').forEach(el => {
-                    el.style.backgroundColor = 'transparent';
-                    
-                    // Si es la etiqueta de salto de página manual, la ocultamos por completo en el PDF impreso
-                    if (el.classList.contains('html2pdf__page-break')) {
-                        el.style.borderBottom = 'none';
-                        el.style.color = 'transparent';
-                        el.style.fontSize = '0px';
-                        el.style.height = '0px';
-                        el.style.margin = '0px';
-                        el.style.padding = '0px';
-                        el.style.lineHeight = '0px';
-                        return;
-                    }
+                if (currentPreviewUrl) URL.revokeObjectURL(currentPreviewUrl);
+                currentPreviewUrl = URL.createObjectURL(blob);
 
-                    if (el.tagName === 'H1' || el.tagName === 'H2' || el.tagName === 'H3' || el.tagName === 'H4') {
-                        el.style.color = '#1e3a8a';
-                        el.style.borderBottom = '2px solid #e5e7eb';
-                        el.style.paddingBottom = '6px';
-                        el.style.marginTop = '28px';
-                        el.style.marginBottom = '16px';
-                        el.style.fontWeight = '700';
-                        el.style.pageBreakAfter = 'avoid';
-                    } else if (el.tagName === 'P') {
-                        el.style.color = '#374151';
-                        el.style.lineHeight = '1.7';
-                        el.style.marginBottom = '16px';
-                    } else if (el.tagName === 'TABLE') {
-                        el.style.width = '100%';
-                        el.style.borderCollapse = 'collapse';
-                        el.style.marginBottom = '20px';
-                        el.style.pageBreakInside = 'avoid';
-                    } else if (el.tagName === 'TR') {
-                        el.style.pageBreakInside = 'avoid';
-                    } else if (el.tagName === 'TH') {
-                        el.style.color = '#111827';
-                        el.style.backgroundColor = '#e5e7eb';
-                        el.style.border = '2px solid #374151';
-                        el.style.fontWeight = '700';
-                        el.style.padding = '10px';
-                        el.style.fontSize = '0.9rem';
-                    } else if (el.tagName === 'TD') {
-                        el.style.color = '#111827';
-                        el.style.border = '1.5px solid #6b7280';
-                        el.style.padding = '10px';
-                        el.style.fontSize = '0.85rem';
-                    } else if (el.tagName === 'A') {
-                        el.style.color = '#2563eb';
-                    } else if (el.tagName === 'PRE' || el.tagName === 'CODE') {
-                        el.style.backgroundColor = '#f8fafc';
-                        el.style.color = '#0f172a';
-                        el.style.border = '1px solid #e2e8f0';
-                        el.style.padding = '12px';
-                        el.style.borderRadius = '6px';
-                        el.style.fontSize = '0.85rem';
-                        el.style.whiteSpace = 'pre-wrap';
-                        el.style.wordBreak = 'break-all';
-                        el.style.pageBreakInside = 'avoid';
-                    } else if (el.tagName === 'LI') {
-                        el.style.color = '#374151';
-                        el.style.marginBottom = '8px';
-                        el.style.lineHeight = '1.6';
-                    } else {
-                        el.style.color = '#374151';
-                    }
+                const iframe = document.getElementById('pdfPreviewIframe');
+                if (iframe) iframe.src = currentPreviewUrl + '#toolbar=0&navpanes=0&view=FitH';
+                if (statusEl) statusEl.innerText = 'Actualizado';
+            } catch (e) {
+                console.warn('Error al generar vista previa:', e);
+                if (statusEl) statusEl.innerText = 'Error';
+            } finally {
+                isGeneratingPreview = false;
+            }
+        }
+
+        // Inicializar TinyMCE
+        window.tinymce.init({
+            selector: '#editorTiny',
+            height: 650,
+            plugins: 'pagebreak lists table code searchreplace fullscreen',
+            toolbar: 'undo redo | blocks | bold italic underline | alignleft aligncenter alignright | bullist numlist | table | pagebreak | removeformat',
+            skin: 'oxide-dark',
+            content_css: false,
+            content_style: `
+                body {
+                    background: #ffffff !important;
+                    color: #1f2937 !important;
+                    font-family: 'Outfit', sans-serif;
+                    font-size: 11pt;
+                    line-height: 1.7;
+                    padding: 16px;
+                    /* Líneas guía punteadas cada ~920px (aprox A4) */
+                    background-image: repeating-linear-gradient(
+                        to bottom,
+                        transparent,
+                        transparent 920px,
+                        rgba(167, 139, 250, 0.35) 920px,
+                        rgba(167, 139, 250, 0.35) 921px
+                    ) !important;
+                }
+                h1, h2, h3, h4 {
+                    color: #1e3a8a;
+                    font-weight: 700;
+                    margin-top: 20px;
+                    margin-bottom: 10px;
+                }
+                p { margin-bottom: 12px; }
+                table {
+                    border-collapse: collapse;
+                    width: 100%;
+                    margin-bottom: 16px;
+                }
+                th, td {
+                    border: 1px solid #9ca3af;
+                    padding: 8px;
+                    text-align: left;
+                }
+                th {
+                    background-color: #e5e7eb;
+                    font-weight: 700;
+                }
+                img { max-width: 100%; height: auto; }
+                a { color: #2563eb; }
+                hr.mce-pagebreak {
+                    border: none;
+                    border-top: 3px dashed #a78bfa;
+                    margin: 20px 0;
+                    height: 3px;
+                    background: transparent;
+                }
+            `,
+            setup: function(editor) {
+                editor.on('init', function() {
+                    editor.setContent(docHtml);
+                    setTimeout(actualizarPreview, 800);
                 });
+                editor.on('input change undo redo setcontent', function() {
+                    clearTimeout(previewDebounceTimer);
+                    const statusEl = document.getElementById('previewStatus');
+                    if (statusEl) statusEl.innerText = 'Escribiendo...';
+                    previewDebounceTimer = setTimeout(actualizarPreview, 2500);
+                });
+            }
+        });
 
-                // 3. Configurar opciones de html2pdf
-                const opt = {
-                    margin:       [10, 10, 10, 10],
-                    filename:     `${docName}.pdf`,
-                    image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2, useCORS: true, logging: false },
-                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                    pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
-                };
+        document.getElementById('btnActualizarPreview')?.addEventListener('click', actualizarPreview);
 
-                // 4. Generar nuevo PDF Blob
-                const pdfBlob = await window.html2pdf().set(opt).from(hiddenDiv).output('blob');
-                document.body.removeChild(wrapper);
+        document.getElementById('btnCancelarEdicion')?.addEventListener('click', () => {
+            if (currentPreviewUrl) URL.revokeObjectURL(currentPreviewUrl);
+            window.tinymce.remove('#editorTiny');
+            renderVistaLectura();
+        });
 
-                // 5. Eliminar el PDF anterior de Storage si existe (evita acumulación de archivos huérfanos)
+        async function guardarCambios(verDespues = false) {
+            const editor = window.tinymce.get('editorTiny');
+            if (!editor) {
+                alert('El editor no está listo aún. Espera un momento e intenta de nuevo.');
+                return;
+            }
+            const nuevoHtml = prepararHtmlParaPdf(editor.getContent());
+
+            const btnGuardar = document.getElementById('btnGuardarEdicion');
+            const btnVer = document.getElementById('btnGuardarYVer');
+            if (btnGuardar) { btnGuardar.disabled = true; }
+            if (btnVer) { btnVer.disabled = true; }
+
+            const btnActivo = verDespues ? btnVer : btnGuardar;
+            if (btnActivo) btnActivo.innerText = '⚡ Regenerando PDF...';
+
+            try {
+                const pdfBlob = await generarPdfBlob(nuevoHtml);
+
+                // Eliminar el PDF anterior de Storage si existe
                 const urlAnterior = contenido.pdfUrl || '';
                 if (urlAnterior) {
                     try {
-                        // Extraer el path relativo desde la URL pública de Supabase
                         const storagePrefix = '/storage/v1/object/public/documentos_pdf/';
                         const idxPrefix = urlAnterior.indexOf(storagePrefix);
                         if (idxPrefix !== -1) {
@@ -334,7 +364,7 @@ async function abrirModalVisualizador(doc) {
                     }
                 }
 
-                // 6. Subir el nuevo PDF a Storage con un path fijo por documento (sobreescribe el anterior)
+                // Subir el nuevo PDF a Storage
                 const nuevoFilePath = `user_${doc.usuario_id || userId}/${docId}_documentacion.pdf`;
                 const { data: uploadData, error: uploadError } = await supabaseClient.storage
                     .from('documentos_pdf')
@@ -345,17 +375,17 @@ async function abrirModalVisualizador(doc) {
 
                 if (uploadError) throw uploadError;
 
-                // 7. Obtener URL pública
+                // Obtener URL pública
                 const { data: publicUrlData } = supabaseClient.storage
                     .from('documentos_pdf')
                     .getPublicUrl(nuevoFilePath);
 
                 const nuevaPdfUrl = publicUrlData.publicUrl;
 
-                // 7. Actualizar el contenido en la base de datos
+                // Actualizar la base de datos
                 const nuevoContenido = {
                     ...contenido,
-                    documentation: nuevoHtml, // Guardamos la documentación ya formateada como HTML limpio de Quill
+                    documentation: nuevoHtml,
                     pdfUrl: nuevaPdfUrl
                 };
 
@@ -369,26 +399,50 @@ async function abrirModalVisualizador(doc) {
 
                 if (updateError) throw updateError;
 
-                // 8. Actualizar las variables locales para la recarga
+                // Registrar log de edicion de contenido
+                try {
+                    await fetch('/api/logs', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            usuarioId: userId,
+                            usuarioEmail: sessionStorage.getItem('ds_email') || '',
+                            accion: 'editar_contenido',
+                            detalles: {
+                                documentoId: docId,
+                                nombreDocumento: docName
+                            }
+                        })
+                    });
+                } catch (logErr) {
+                    console.error('Error registrando log de edicion:', logErr);
+                }
+
+                if (currentPreviewUrl) URL.revokeObjectURL(currentPreviewUrl);
+                window.tinymce.remove('#editorTiny');
+
                 contenido = nuevoContenido;
                 doc.contenido = nuevoContenido;
 
                 alert('¡Cambios guardados y PDF regenerado con éxito!');
-                renderTodo(); // Recargar la lista principal en segundo plano
-                
-                // Esperar un momento para que Supabase Storage propague el nuevo archivo
-                // antes de recargar el visor (evita pantalla en blanco)
-                setTimeout(() => {
-                    abrirModalVisualizador(doc);
-                }, 1500);
+                renderTodo();
+
+                if (verDespues) {
+                    setTimeout(() => {
+                        abrirModalVisualizador(doc);
+                    }, 600);
+                }
 
             } catch (err) {
                 console.error("Error al guardar edición:", err);
                 alert("Error al guardar cambios: " + err.message);
-                btnGuardar.disabled = false;
-                btnGuardar.innerText = '💾 Guardar Cambios';
+                if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.innerText = '💾 Guardar'; }
+                if (btnVer) { btnVer.disabled = false; btnVer.innerText = '💾 Guardar y Ver'; }
             }
-        });
+        }
+
+        document.getElementById('btnGuardarEdicion')?.addEventListener('click', () => guardarCambios(false));
+        document.getElementById('btnGuardarYVer')?.addEventListener('click', () => guardarCambios(true));
     }
 
     renderVistaLectura();
@@ -481,6 +535,20 @@ async function moverAPapelera(id, nombre, acceso, contenido) {
     }
     await supabaseClient.from('papelera').insert([{ usuario_id: userId, nombre, acceso, fecha_eliminacion: new Date().toISOString(), contenido }]);
     await supabaseClient.from('documentos').delete().eq('id', id);
+    try {
+        await fetch('/api/logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                usuarioId: userId,
+                usuarioEmail: sessionStorage.getItem('ds_email') || '',
+                accion: 'mover_papelera',
+                detalles: { nombreDocumento: nombre, documentoId: id }
+            })
+        });
+    } catch (logErr) {
+        console.error('Error registrando log de papelera:', logErr);
+    }
 }
 
 async function restaurarDocumento(papId, nombre, acceso, contenido) {
@@ -490,8 +558,38 @@ async function restaurarDocumento(papId, nombre, acceso, contenido) {
     }
     await supabaseClient.from('documentos').insert([{ usuario_id: userId, nombre, acceso, fecha_mod: new Date().toISOString(), contenido }]);
     await supabaseClient.from('papelera').delete().eq('id', papId);
+    try {
+        await fetch('/api/logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                usuarioId: userId,
+                usuarioEmail: sessionStorage.getItem('ds_email') || '',
+                accion: 'restaurar_documento',
+                detalles: { nombreDocumento: nombre, documentoId: papId }
+            })
+        });
+    } catch (logErr) {
+        console.error('Error registrando log de restaurar:', logErr);
+    }
 }
-async function eliminarPermanente(papId) { await supabaseClient.from('papelera').delete().eq('id', papId); }
+async function eliminarPermanente(papId) { 
+    await supabaseClient.from('papelera').delete().eq('id', papId); 
+    try {
+        await fetch('/api/logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                usuarioId: userId,
+                usuarioEmail: sessionStorage.getItem('ds_email') || '',
+                accion: 'eliminar_definitivo',
+                detalles: { documentoId: papId }
+            })
+        });
+    } catch (logErr) {
+        console.error('Error registrando log de eliminar definitivo:', logErr);
+    }
+}
 async function limpiarPapelera() {
     const items = await cargarPapelera(); const ahora = new Date();
     for (const item of items) {
@@ -536,6 +634,27 @@ async function renderDocumentosActivos() {
         const nuevo = prompt('Nuevo nombre:', doc.nombre);
         if (nuevo) {
             await supabase.from('documentos').update({ nombre: nuevo.trim() }).eq('id', doc.id);
+            
+            // Registrar log de renombrar
+            try {
+                await fetch('/api/logs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        usuarioId: userId,
+                        usuarioEmail: sessionStorage.getItem('ds_email') || '',
+                        accion: 'renombrar_documento',
+                        detalles: {
+                            documentoId: doc.id,
+                            nombreAnterior: doc.nombre,
+                            nombreNuevo: nuevo.trim()
+                        }
+                    })
+                });
+            } catch (logErr) {
+                console.error('Error registrando log de renombrar:', logErr);
+            }
+
             renderTodo();
         }
     }));
@@ -717,6 +836,26 @@ async function mostrarModalCompartir(doc) {
                         throw error;
                     }
                 } else {
+                    // Registrar log de compartir exitoso
+                    try {
+                        await fetch('/api/logs', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                usuarioId: userId,
+                                usuarioEmail: sessionStorage.getItem('ds_email') || '',
+                                accion: 'compartir_documento',
+                                detalles: {
+                                    documentoId: doc.id,
+                                    nombreDocumento: doc.nombre,
+                                    compartidoConId: targetUserId
+                                }
+                            })
+                        });
+                    } catch (logErr) {
+                        console.error('Error registrando log de compartir:', logErr);
+                    }
+
                     mostrarModalCompartir(doc);
                 }
             } catch (err) {
@@ -739,6 +878,27 @@ async function mostrarModalCompartir(doc) {
                 try {
                     const { error } = await supabaseClient.from('compartidos').delete().eq('id', shareId);
                     if (error) throw error;
+
+                    // Registrar log de revocar compartir exitoso
+                    try {
+                        await fetch('/api/logs', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                usuarioId: userId,
+                                usuarioEmail: sessionStorage.getItem('ds_email') || '',
+                                accion: 'revocar_compartir',
+                                detalles: {
+                                    documentoId: doc.id,
+                                    nombreDocumento: doc.nombre,
+                                    shareId: shareId
+                                }
+                            })
+                        });
+                    } catch (logErr) {
+                        console.error('Error registrando log de revocar:', logErr);
+                    }
+
                     mostrarModalCompartir(doc);
                 } catch (err) {
                     console.error(err);

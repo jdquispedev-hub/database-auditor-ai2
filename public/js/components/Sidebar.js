@@ -3,6 +3,23 @@
  * Standard Web Component for unified navigation and styles.
  */
 
+// Función global unificada para cerrar sesión
+if (!window.logoutSession) {
+    window.logoutSession = async function() {
+        try {
+            if (window.supabaseClient && window.supabaseClient.auth) {
+                await window.supabaseClient.auth.signOut();
+            } else if (typeof supabaseClient !== 'undefined' && supabaseClient.auth) {
+                await supabaseClient.auth.signOut();
+            }
+        } catch (err) {
+            console.error('Error al cerrar sesión en Supabase:', err);
+        }
+        sessionStorage.clear();
+        window.location.replace('login.html');
+    };
+}
+
 class AppSidebar extends HTMLElement {
     constructor() {
         super();
@@ -10,7 +27,30 @@ class AppSidebar extends HTMLElement {
 
     connectedCallback() {
         const activePage = this.getAttribute('active-page') || 'dashboard';
+        const role = sessionStorage.getItem('ds_role') || 'usuario';
         
+        let adminLink = '';
+        if (role === 'admin') {
+            adminLink = `
+                <a href="usu_admin.html" class="menu-item ${activePage === 'admin' ? 'active' : ''}">
+                    <svg class="menu-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="10" rx="2" ry="2"></rect>
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                    Panel Administrador
+                </a>
+                <a href="usu_usuarios.html" class="menu-item ${activePage === 'usuarios' ? 'active' : ''}">
+                    <svg class="menu-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    Gestión de Usuarios
+                </a>
+            `;
+        }
+
         this.innerHTML = `
             <aside class="sidebar">
                 <div class="logo-sidebar">DataScript AI</div>
@@ -49,6 +89,8 @@ class AppSidebar extends HTMLElement {
                     </svg>
                     Compartidos conmigo
                 </a>
+                
+                ${adminLink}
                 
                 <div class="menu-item logout" id="logoutBtn" onclick="logoutSession()">
                     <svg class="menu-icon-svg" width="20" height="20" viewBox="0 0 24 24">

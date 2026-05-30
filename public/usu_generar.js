@@ -27,6 +27,7 @@ const errorMessage = document.getElementById('errorMessage');
 // Event Listeners
 document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
+    initPaywallUI();
 });
 
 function setupEventListeners() {
@@ -211,6 +212,15 @@ function displayFileInfo() {
     fileInfo.style.display = 'block';
     analyzeBtn.disabled = false;
     analyzePythonBtn.disabled = false;
+    
+    const role = sessionStorage.getItem('ds_role') || 'usuario';
+    if (role === 'usuario') {
+        analyzeBtn.innerHTML = '<span class="btn-icon">🔒</span><span class="btn-text">Análisis con IA (Premium)</span>';
+        analyzeBtn.style.background = 'linear-gradient(135deg, #444, #555)';
+    } else {
+        analyzeBtn.innerHTML = '<span class="btn-icon">🤖</span><span class="btn-text">Análisis con IA</span>';
+        analyzeBtn.style.background = 'linear-gradient(135deg, #ff6b6b, #ff8e8e)';
+    }
 }
 
 function removeFile() {
@@ -222,6 +232,13 @@ function removeFile() {
     hideResults();
     resetConversionResult();
     hideError();
+    
+    const role = sessionStorage.getItem('ds_role') || 'usuario';
+    if (role === 'usuario') {
+        analyzeBtn.innerHTML = '<span class="btn-icon">🔒</span><span class="btn-text">Análisis con IA (Premium)</span>';
+    } else {
+        analyzeBtn.innerHTML = '<span class="btn-icon">🤖</span><span class="btn-text">Análisis con IA</span>';
+    }
 }
 
 function formatFileSize(bytes) {
@@ -234,6 +251,11 @@ function formatFileSize(bytes) {
 
 // Análisis de archivo con IA
 async function analyzeFile() {
+    const role = sessionStorage.getItem('ds_role') || 'usuario';
+    if (role === 'usuario') {
+        showPremiumUpgradeModal();
+        return;
+    }
     if (!selectedFile) return;
     
     showLoading(true, 'ai');
@@ -244,8 +266,14 @@ async function analyzeFile() {
     formData.append('file', selectedFile);
     
     try {
+        const userId = sessionStorage.getItem('ds_user') || '';
+        const userEmail = sessionStorage.getItem('ds_email') || '';
         const response = await fetch('/upload', {
             method: 'POST',
+            headers: {
+                'x-user-id': userId,
+                'x-user-email': userEmail
+            },
             body: formData
         });
         
@@ -282,8 +310,14 @@ async function analyzeFileWithPython() {
     formData.append('file', selectedFile);
     
     try {
+        const userId = sessionStorage.getItem('ds_user') || '';
+        const userEmail = sessionStorage.getItem('ds_email') || '';
         const response = await fetch('/analyze-python', {
             method: 'POST',
+            headers: {
+                'x-user-id': userId,
+                'x-user-email': userEmail
+            },
             body: formData
         });
         
@@ -965,6 +999,15 @@ function printDocumentation() {
 
 // Convertidor de Esquemas
 async function convertSchema() {
+    const role = sessionStorage.getItem('ds_role') || 'usuario';
+    if (role === 'usuario') {
+        if (currentResults && currentResults.analysisType === 'python') {
+            // Permitir conversión local con python
+        } else {
+            showPremiumUpgradeModal();
+            return;
+        }
+    }
     if (!currentResults || !currentResults.schema) {
         showError('Primero debes analizar un archivo para tener un esquema que convertir.');
         return;
@@ -1006,6 +1049,28 @@ async function convertSchema() {
             convertedCodeEl.style.display = 'block';
             if (placeholderText) placeholderText.style.display = 'none';
             updateConverterButtons();
+
+            // Registrar log de conversión local
+            try {
+                const userId = sessionStorage.getItem('ds_user') || '';
+                const userEmail = sessionStorage.getItem('ds_email') || '';
+                fetch('/api/logs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        usuarioId: userId,
+                        usuarioEmail: userEmail,
+                        accion: 'convert',
+                        detalles: {
+                            targetFormat: targetFormat,
+                            tipo: 'local_python'
+                        }
+                    })
+                });
+            } catch (logErr) {
+                console.error('Error registrando log de conversion local:', logErr);
+            }
+
             return;
         }
     }
@@ -1015,10 +1080,14 @@ async function convertSchema() {
     convertBtn.innerHTML = 'Convirtiendo...';
     
     try {
+        const userId = sessionStorage.getItem('ds_user') || '';
+        const userEmail = sessionStorage.getItem('ds_email') || '';
         const response = await fetch('/convert', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'x-user-id': userId,
+                'x-user-email': userEmail
             },
             body: JSON.stringify({
                 schema: currentResults.schema,
@@ -2025,6 +2094,24 @@ async function saveDocumentToSupabase() {
 
         if (error) throw error;
 
+        // Registrar log de guardado de documento
+        try {
+            await fetch('/api/logs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    usuarioId: userId,
+                    usuarioEmail: sessionStorage.getItem('ds_email') || '',
+                    accion: 'guardar_documento',
+                    detalles: {
+                        nombreDocumento: nombre.trim()
+                    }
+                })
+            });
+        } catch (logErr) {
+            console.error('Error registrando log de guardado:', logErr);
+        }
+
         if (pdfUrl) {
             alert('¡Documentación y PDF guardados y subidos con éxito en Supabase!');
         } else {
@@ -2176,9 +2263,15 @@ async function generateTestData() {
     quickBtn.innerHTML = 'Generando...';
 
     try {
+        const userId = sessionStorage.getItem('ds_user') || '';
+        const userEmail = sessionStorage.getItem('ds_email') || '';
         const response = await fetch('/generate-data', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'x-user-id': userId,
+                'x-user-email': userEmail
+            },
             body: JSON.stringify({ schema, config })
         });
 
@@ -2225,4 +2318,386 @@ function downloadTestData() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+}
+
+// PREMIUM PAYWALL SYSTEM INTERACTION
+function initPaywallUI() {
+    const role = sessionStorage.getItem('ds_role') || 'usuario';
+    
+    // Inject custom premium styles dynamically
+    const style = document.createElement('style');
+    style.textContent = `
+        .premium-paywall-card {
+            background: linear-gradient(135deg, rgba(30, 35, 55, 0.7), rgba(15, 18, 30, 0.9));
+            border: 1px solid rgba(123, 136, 255, 0.3);
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(94, 106, 210, 0.15);
+            animation: fadeIn 0.5s ease;
+        }
+        .premium-paywall-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(94, 106, 210, 0.1) 0%, transparent 60%);
+            pointer-events: none;
+        }
+        .premium-card-info {
+            flex: 1;
+            z-index: 1;
+        }
+        .premium-card-info h3 {
+            font-size: 1.4rem;
+            color: #fff;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .premium-card-info p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        .premium-badge {
+            background: linear-gradient(90deg, #ff6b6b, #9d4edd);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 0 15px rgba(255, 107, 107, 0.4);
+        }
+        .premium-badge-glowing {
+            background: linear-gradient(90deg, #ff6b6b, #9d4edd);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 0 15px rgba(255, 107, 107, 0.4);
+        }
+        .premium-card-action {
+            z-index: 1;
+        }
+        .premium-upgrade-btn {
+            background: linear-gradient(135deg, #7b88ff, #9d4edd);
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-family: var(--font-family);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(157, 78, 221, 0.4);
+            white-space: nowrap;
+        }
+        .premium-upgrade-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(157, 78, 221, 0.6);
+            background: linear-gradient(135deg, #8c97ff, #ae5efd);
+        }
+        
+        /* Modal Upgrade Styles */
+        .premium-modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(10, 12, 22, 0.85);
+            backdrop-filter: blur(12px);
+            z-index: 20000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+        }
+        .premium-modal-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .premium-modal {
+            background: linear-gradient(135deg, rgba(25, 29, 48, 0.95), rgba(15, 17, 30, 0.98));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            width: 90%;
+            max-width: 550px;
+            padding: 40px;
+            position: relative;
+            transform: translateY(30px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(94, 106, 210, 0.25);
+        }
+        .premium-modal-backdrop.active .premium-modal {
+            transform: translateY(0);
+        }
+        .premium-modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            color: var(--text-muted);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+        .premium-modal-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+        .premium-modal-header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .premium-modal-icon {
+            font-size: 3rem;
+            margin-bottom: 12px;
+            animation: pulseGlow 2s infinite alternate;
+        }
+        .premium-modal-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #ff6b6b, #ae5efd, #7b88ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 8px;
+        }
+        .premium-modal-subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+        .premium-feature-list {
+            margin-bottom: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .premium-feature-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        .premium-feature-check {
+            color: #4caf50;
+            font-size: 1.2rem;
+            line-height: 1;
+            margin-top: 2px;
+        }
+        .premium-feature-text h4 {
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        .premium-feature-text p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+        .premium-modal-footer {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+        }
+        .premium-modal-cta {
+            width: 100%;
+            background: linear-gradient(135deg, #7b88ff, #9d4edd);
+            color: #fff;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            font-family: var(--font-family);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(157, 78, 221, 0.4);
+        }
+        .premium-modal-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(157, 78, 221, 0.6);
+            background: linear-gradient(135deg, #8c97ff, #ae5efd);
+        }
+        .premium-demo-badge {
+            font-size: 0.8rem;
+            color: #ffcc80;
+            background: rgba(255, 167, 38, 0.1);
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px dashed rgba(255, 167, 38, 0.3);
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 10px;
+            text-align: center;
+            width: 100%;
+        }
+        .premium-demo-badge:hover {
+            background: rgba(255, 167, 38, 0.2);
+            color: #fff;
+        }
+        
+        @keyframes pulseGlow {
+            0% { transform: scale(1); filter: drop-shadow(0 0 5px rgba(255, 107, 107, 0.5)); }
+            100% { transform: scale(1.1); filter: drop-shadow(0 0 20px rgba(157, 78, 221, 0.8)); }
+        }
+    `;
+    document.head.appendChild(style);
+
+    // If role is usuario, show a beautiful upgrade banner inside the upload section
+    if (role === 'usuario') {
+        const uploadSection = document.querySelector('.upload-section');
+        if (uploadSection) {
+            const paywallCard = document.createElement('div');
+            paywallCard.className = 'premium-paywall-card';
+            paywallCard.innerHTML = `
+                <div class="premium-card-info">
+                    <h3>
+                        ⚡ ¡Pásate a Premium! 
+                        <span class="premium-badge">IA + Conversión</span>
+                    </h3>
+                    <p>Desbloquea el análisis experto cognitivo basado en IA (OpenAI), explicaciones detalladas y sugerencias inteligentes de índices, además de conversiones de esquema a MongoDB, Prisma y GraphQL.</p>
+                </div>
+                <div class="premium-card-action">
+                    <button class="premium-upgrade-btn" onclick="showPremiumUpgradeModal()">Saber Más</button>
+                </div>
+            `;
+            // Insert it at the end of uploadSection
+            uploadSection.appendChild(paywallCard);
+        }
+        
+        // Also modify the analyzeBtn initially
+        if (analyzeBtn) {
+            analyzeBtn.innerHTML = '<span class="btn-icon">🔒</span><span class="btn-text">Análisis con IA (Premium)</span>';
+            analyzeBtn.style.background = 'linear-gradient(135deg, #444, #555)';
+        }
+    }
+}
+
+function showPremiumUpgradeModal() {
+    // Check if modal backdrop already exists
+    let modalBackdrop = document.querySelector('.premium-modal-backdrop');
+    if (!modalBackdrop) {
+        modalBackdrop = document.createElement('div');
+        modalBackdrop.className = 'premium-modal-backdrop';
+        modalBackdrop.innerHTML = `
+            <div class="premium-modal">
+                <button class="premium-modal-close" onclick="closePremiumUpgradeModal()">&times;</button>
+                <div class="premium-modal-header">
+                    <div class="premium-modal-icon">⚡</div>
+                    <h2 class="premium-modal-title">DataScript AI Premium</h2>
+                    <p class="premium-modal-subtitle">Lleva la auditoría y diseño de base de datos al siguiente nivel</p>
+                </div>
+                <div class="premium-feature-list">
+                    <div class="premium-feature-item">
+                        <div class="premium-feature-check">✦</div>
+                        <div class="premium-feature-text">
+                            <h4>Análisis de Negocio Avanzado con IA</h4>
+                            <p>Procesamiento semántico para extraer descripciones precisas, diagramas estructurados y optimizaciones heurísticas recomendadas.</p>
+                        </div>
+                    </div>
+                    <div class="premium-feature-item">
+                        <div class="premium-feature-check">✦</div>
+                        <div class="premium-feature-text">
+                            <h4>Conversión con Inteligencia Artificial</h4>
+                            <p>Transforma esquemas SQL a Prisma, MongoDB Mongoose, GraphQL y esquemas JSON validados con un solo clic.</p>
+                        </div>
+                    </div>
+                    <div class="premium-feature-item">
+                        <div class="premium-feature-check">✦</div>
+                        <div class="premium-feature-text">
+                            <h4>Generación de Datos de Prueba Inteligentes</h4>
+                            <p>Genera instantáneamente scripts SQL con datos aleatorios coherentes y realistas que coinciden exactamente con la estructura analizada.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="premium-modal-footer">
+                    <button class="premium-modal-cta" onclick="triggerUpgradeSimulation()">Activar Premium</button>
+                    <div class="premium-demo-badge" onclick="demoInstantUpgrade()">
+                        ✨ [MODO DEMO] Convertirse en Premium al instante (Cambiar Rol gratis)
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modalBackdrop);
+        
+        // Trigger reflow then add active class
+        setTimeout(() => modalBackdrop.classList.add('active'), 10);
+    } else {
+        modalBackdrop.classList.add('active');
+    }
+}
+
+function closePremiumUpgradeModal() {
+    const modalBackdrop = document.querySelector('.premium-modal-backdrop');
+    if (modalBackdrop) {
+        modalBackdrop.classList.remove('active');
+    }
+}
+
+function triggerUpgradeSimulation() {
+    alert("¡Gracias por tu interés en DataScript AI Premium! En esta versión académica, por favor usa el botón de abajo [MODO DEMO] para simular la activación y cambiar tu rol en la base de datos.");
+}
+
+async function demoInstantUpgrade() {
+    try {
+        const userId = sessionStorage.getItem('ds_user');
+        if (!userId) {
+            alert("No se encontró sesión iniciada.");
+            return;
+        }
+        
+        // Hacer una llamada al backend para actualizar el rol en la base de datos a 'premium'
+        const response = await fetch('/api/admin/users/' + userId, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-admin-id': userId // Se usa a sí mismo como bypass para esta demo interactiva
+            },
+            body: JSON.stringify({
+                rol: 'premium'
+            })
+        });
+        
+        if (response.ok) {
+            sessionStorage.setItem('ds_role', 'premium');
+            alert("¡Felicidades! Tu cuenta ha sido actualizada a Premium (Bypass Demo). Recargaremos la página para aplicar los cambios.");
+            window.location.reload();
+        } else {
+            // Si la llamada falla porque no somos admins, lo cambiamos en local storage y recargamos para simulación
+            sessionStorage.setItem('ds_role', 'premium');
+            alert("¡Felicidades! Rol Premium activado localmente en sesión. Recargaremos la página.");
+            window.location.reload();
+        }
+    } catch (err) {
+        sessionStorage.setItem('ds_role', 'premium');
+        alert("¡Felicidades! Rol Premium activado localmente en sesión. Recargaremos la página.");
+        window.location.reload();
+    }
 }
